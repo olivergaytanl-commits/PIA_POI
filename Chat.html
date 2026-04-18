@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,71 +10,287 @@
 </head>
 <body>
 
-
 <nav class="navbar">
-          
-<a href="Inicio.html" class="sesion nav-left">BetGol ⚽</a>
+    <a href="Inicio.html" class="sesion nav-left">BetGol ⚽</a>
 
-<div class="Busqueda"> 
-    <input type="text" class="form-control nav-center" placeholder="Ingrese el usuario que desea buscar aquí"> 
-    <button class="btn btn-outline-success nav-center">Buscar</button> 
-</div>   
+    <div class="Busqueda">
+        <input type="text" id="buscarInput" class="form-control nav-center" placeholder="Ingrese el usuario que desea buscar aquí">
+        <button class="btn btn-outline-success nav-center" onclick="buscarUsuario()">Buscar</button>
+    </div>
 
-<a href="Registro.html" class="sesion nav-right">Info</a>
-
+    <button class="sesion nav-right btn-logout" onclick="logout()">Salir 🚪</button>
 </nav>
 
 <hr>
 
+<!-- DROPDOWN RESULTADOS BÚSQUEDA -->
+<div id="resultadosBusqueda" class="resultados-dropdown" style="display:none;"></div>
+
 <div class="chat-container">
 
     <!-- LISTA DE USUARIOS -->
-    <div class="chat-users">
-        <div class="user"></div>
-        <div class="user"></div>
-        <div class="user"></div>
-        <div class="user"></div>
-        <div class="user"></div>
-        <div class="user"></div>
+    <div class="chat-users" id="listaAmigos">
+        <div class="users-loading">...</div>
     </div>
 
     <!-- AREA DEL CHAT -->
     <div class="chat-box">
 
-        <div class="chat-header">
-            <img src="https://i.imgur.com/3GvwNBf.png" class="avatar">
-            <div>
-                <strong>Paco Perez</strong>
-                <p class="online">Online</p>
+        <div class="chat-header" id="chatHeader">
+            <div class="sin-chat">
+                <p>⚽ Selecciona un contacto para chatear</p>
             </div>
-
-            <div class="chat-actions">
-        <button class="btn btn-outline-success btn-sm">📞</button>
-        <button class="btn btn-outline-primary btn-sm">📹</button>
-    </div>
-            
         </div>
 
         <hr>
 
-        <div class="chat-messages">
-
-            <div class="message">
-                hola hola hola
-            </div>
-
-        </div>
+        <div class="chat-messages" id="chatMessages"></div>
 
         <!-- INPUT -->
         <div class="chat-input">
             <button class="btn btn-outline-secondary">📎</button>
-            <input type="text" placeholder="mensaje...">
-            <button>Enviar</button>
+            <input type="text" id="msgInput" placeholder="mensaje..." onkeydown="enterEnviar(event)">
+            <button onclick="enviarMensaje()">Enviar</button>
         </div>
 
     </div>
 
 </div>
+
+<!-- Supabase Realtime -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// ─────────────────────────────────────────────────────────
+//  CONFIG  ← pega aquí tu anon key cuando la tengas
+// ─────────────────────────────────────────────────────────
+const SUPABASE_URL  = 'https://fjoiyxvhbntpcxjrrksy.supabase.co';
+const SUPABASE_ANON = 'TU_ANON_KEY_AQUI';
+const API           = window.location.origin;
+
+const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ─────────────────────────────────────────────────────────
+//  ESTADO
+// ─────────────────────────────────────────────────────────
+let currentUser  = null;
+let token        = null;
+let activeFriend = null;
+let realtimeSub  = null;
+
+// ─────────────────────────────────────────────────────────
+//  INIT — redirige si no hay sesión
+// ─────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+    token       = localStorage.getItem('token');
+    currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+
+    if (!token || !currentUser) {
+        window.location.href = 'InicioS.html';
+        return;
+    }
+
+    cargarAmigos();
+});
+
+// ─────────────────────────────────────────────────────────
+//  AMIGOS
+// ─────────────────────────────────────────────────────────
+async function cargarAmigos() {
+    const res   = await authFetch('/api/friends');
+    const lista = await res.json();
+    const cont  = document.getElementById('listaAmigos');
+    cont.innerHTML = '';
+
+    if (!lista.length) {
+        cont.innerHTML = '<p class="sin-amigos">Busca usuarios<br>y agrégalos</p>';
+        return;
+    }
+
+    lista.forEach(u => {
+        const div = document.createElement('div');
+        div.className = 'user-item';
+        div.title = u.full_name;
+        div.innerHTML = `
+            <div class="user-avatar">${iniciales(u.full_name)}</div>
+            <span class="user-name">${u.full_name}</span>`;
+        div.onclick = (e) => abrirChat(u, e.currentTarget);
+        cont.appendChild(div);
+    });
+}
+
+// ─────────────────────────────────────────────────────────
+//  BÚSQUEDA
+// ─────────────────────────────────────────────────────────
+async function buscarUsuario() {
+    const q    = document.getElementById('buscarInput').value.trim();
+    if (!q) return;
+
+    const res   = await authFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+    const users = await res.json();
+    const drop  = document.getElementById('resultadosBusqueda');
+
+    if (!users.length) {
+        drop.innerHTML = '<div class="res-item">Sin resultados</div>';
+        drop.style.display = 'block';
+        return;
+    }
+
+    drop.innerHTML = '';
+    users.forEach(u => {
+        const div = document.createElement('div');
+        div.className = 'res-item';
+        div.innerHTML = `
+            <strong>${u.full_name}</strong>
+            <span>${u.email}</span>
+            <button onclick="agregarAmigo(${u.id}, '${u.full_name}')">+ Agregar</button>`;
+        drop.appendChild(div);
+    });
+    drop.style.display = 'block';
+}
+
+async function agregarAmigo(friend_id, nombre) {
+    const res = await authFetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ friend_id })
+    });
+    if (res.ok) {
+        document.getElementById('resultadosBusqueda').style.display = 'none';
+        document.getElementById('buscarInput').value = '';
+        cargarAmigos();
+        alert(`✅ ${nombre} agregado a tus contactos`);
+    } else {
+        const d = await res.json();
+        alert(d.error || 'Error al agregar');
+    }
+}
+
+// Cerrar dropdown al hacer click fuera
+document.addEventListener('click', e => {
+    if (!e.target.closest('.Busqueda') && !e.target.closest('.resultados-dropdown'))
+        document.getElementById('resultadosBusqueda').style.display = 'none';
+});
+
+// ─────────────────────────────────────────────────────────
+//  CHAT
+// ─────────────────────────────────────────────────────────
+async function abrirChat(friend, el) {
+    activeFriend = friend;
+
+    document.getElementById('chatHeader').innerHTML = `
+        <div class="user-avatar-hdr">${iniciales(friend.full_name)}</div>
+        <div>
+            <strong>${friend.full_name}</strong>
+            <p class="online">Online</p>
+        </div>
+        <div class="chat-actions">
+            <button class="btn btn-outline-success btn-sm">📞</button>
+            <button class="btn btn-outline-primary btn-sm">📹</button>
+        </div>`;
+
+    document.querySelectorAll('.user-item').forEach(i => i.classList.remove('activo'));
+    el.classList.add('activo');
+
+    await cargarMensajes();
+    suscribirRealtime();
+}
+
+async function cargarMensajes() {
+    const res  = await authFetch(`/api/messages/${activeFriend.id}`);
+    const msgs = await res.json();
+    const cont = document.getElementById('chatMessages');
+    cont.innerHTML = '';
+    msgs.forEach(m => agregarBurbuja(m));
+    cont.scrollTop = cont.scrollHeight;
+}
+
+function agregarBurbuja(m) {
+    const cont  = document.getElementById('chatMessages');
+    const esMio = m.username === currentUser.full_name;
+    const div   = document.createElement('div');
+    div.className = 'message ' + (esMio ? 'propio' : 'ajeno');
+    div.innerHTML = `
+        ${!esMio ? `<span class="msg-autor">${m.username}</span>` : ''}
+        <p>${escapeHtml(m.message)}</p>
+        <span class="msg-hora">${formatHora(m.created_at)}</span>`;
+    cont.appendChild(div);
+    cont.scrollTop = cont.scrollHeight;
+}
+
+async function enviarMensaje() {
+    if (!activeFriend) return;
+    const input = document.getElementById('msgInput');
+    const text  = input.value.trim();
+    if (!text) return;
+
+    input.value = '';
+    input.focus();
+
+    await authFetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to_user_id: activeFriend.id, message: text })
+    });
+}
+
+function enterEnviar(e) {
+    if (e.key === 'Enter') enviarMensaje();
+}
+
+// ─────────────────────────────────────────────────────────
+//  SUPABASE REALTIME
+// ─────────────────────────────────────────────────────────
+function buildChatId(id1, id2) {
+    return [id1, id2].sort().join('_');
+}
+
+function suscribirRealtime() {
+    if (realtimeSub) sbClient.removeChannel(realtimeSub);
+
+    const chatId = buildChatId(currentUser.id, activeFriend.id);
+
+    realtimeSub = sbClient
+        .channel('messages-' + chatId)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `chat_id=eq.${chatId}`
+        }, payload => {
+            agregarBurbuja(payload.new);
+        })
+        .subscribe();
+}
+
+// ─────────────────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────────────────
+function authFetch(url, opts = {}) {
+    return fetch(url, {
+        ...opts,
+        headers: { ...(opts.headers || {}), 'Authorization': `Bearer ${token}` }
+    });
+}
+
+function logout() {
+    localStorage.clear();
+    window.location.href = 'InicioS.html';
+}
+
+function iniciales(nombre) {
+    return nombre.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatHora(ts) {
+    if (!ts) return '';
+    return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+</script>
 
 </body>
 </html>
