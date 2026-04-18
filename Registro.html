@@ -1,65 +1,115 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="Registro.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
-
-<title>Registro</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="Registro.css" rel="stylesheet">
+    <title>Registro - BetGol</title>
 </head>
-
 <body>
 
 <nav class="navbar">
-          
-<a href="Inicio.html" class="sesion nav-left">BetGol ⚽</a>
-          
-<a href="InicioS.html" class="sesion nav-right">← Regresar a Inicio de Sesión</a>
-
+    <a href="Inicio.html" class="sesion nav-left">BetGol ⚽</a>
+    <a href="InicioS.html" class="sesion nav-right">Iniciar Sesión</a>
 </nav>
 
 <hr>
 
 <div class="registro-container">
+    <div class="registro-box">
 
-<div class="registro-box">
+        <h2 class="titulo-registro">Crear cuenta</h2>
 
-<h2 class="titulo-registro">Registro de Usuario</h2>
+        <div id="alerta" style="display:none; padding:10px; border-radius:8px; margin-bottom:16px; font-size:13px; font-weight:600;"></div>
 
-<form>
+        <div class="mb-3">
+            <label class="label-registro form-label">Nombre completo</label>
+            <input type="text" id="full_name" class="form-control" placeholder="Ej: Carlos Ramírez">
+        </div>
 
-<div class="mb-3">
-<label class="form-label label-registro">Nombre completo</label>
-<input type="text" class="form-control" placeholder="Ingrese su nombre completo">
+        <div class="mb-3">
+            <label class="label-registro form-label">Correo electrónico</label>
+            <input type="email" id="email" class="form-control" placeholder="correo@ejemplo.com">
+        </div>
+
+        <div class="mb-3">
+            <label class="label-registro form-label">Contraseña</label>
+            <input type="password" id="password" class="form-control" placeholder="Mínimo 6 caracteres">
+        </div>
+
+        <div class="d-grid">
+            <button id="btnRegistrar" class="btn btn-outline-light" onclick="registrar()">Crear cuenta</button>
+        </div>
+
+        <p class="text-center mt-3" style="color:white; font-size:13px;">
+            ¿Ya tienes cuenta? <a href="InicioS.html" style="color:#a8e6af;">Inicia sesión</a>
+        </p>
+
+    </div>
 </div>
 
-<div class="mb-3">
-<label class="form-label label-registro">Username</label>
-<input type="text" class="form-control" placeholder="Ingrese el user que desea tener">
-</div>
+<script>
+    const API = window.location.origin;
 
-<div class="mb-3">
-<label class="form-label label-registro">Correo electrónico</label>
-<input type="email" class="form-control" placeholder="Ingrese su correo">
-</div>
+    async function registrar() {
+        const full_name = document.getElementById('full_name').value.trim();
+        const email     = document.getElementById('email').value.trim();
+        const password  = document.getElementById('password').value;
+        const btn       = document.getElementById('btnRegistrar');
 
-<div class="mb-3">
-<label class="form-label label-registro">Contraseña</label>
-<input type="password" class="form-control" placeholder="Ingrese su contraseña">
-</div>
+        if (!full_name || !email || !password) {
+            mostrarAlerta('Completa todos los campos', '#ffe0e0', '#c00');
+            return;
+        }
+        if (password.length < 6) {
+            mostrarAlerta('La contraseña debe tener al menos 6 caracteres', '#ffe0e0', '#c00');
+            return;
+        }
 
-<button class="btn btn-outline-success w-100" style="color:white">
-Registrarse
-</button>
+        btn.disabled = true;
+        btn.textContent = 'Creando cuenta...';
 
-</form>
+        try {
+            const res = await fetch(`${API}/api/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ full_name, email, password })
+            });
 
-</div>
+            const data = await res.json();
 
-</div>
+            if (!res.ok) {
+                mostrarAlerta(data.error || 'Error al registrar', '#ffe0e0', '#c00');
+                btn.disabled = false;
+                btn.textContent = 'Crear cuenta';
+                return;
+            }
+
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            mostrarAlerta('¡Cuenta creada! Redirigiendo...', '#e0ffe8', '#1a6b2e');
+            setTimeout(() => window.location.href = 'Chat.html', 1500);
+
+        } catch (e) {
+            mostrarAlerta('No se pudo conectar al servidor', '#ffe0e0', '#c00');
+            btn.disabled = false;
+            btn.textContent = 'Crear cuenta';
+        }
+    }
+
+    function mostrarAlerta(msg, bg, color) {
+        const el = document.getElementById('alerta');
+        el.textContent = msg;
+        el.style.background = bg;
+        el.style.color = color;
+        el.style.display = 'block';
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') registrar(); });
+</script>
 
 </body>
 </html>
