@@ -1,0 +1,60 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background-color: #446447;
+}
+
+.nav-left,
+.nav-center,
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: white;
+  font-weight: bold;
+}
+
+hr{
+    margin: 0;
+}
+
+/*Este diseño se pone a todo el texto dentro de body*/
+body{
+    font-family: 'Raleway', sans-serif;
+}
+
+/* Contenedor */
+
+.registro-container{
+display:flex;
+justify-content:center;
+align-items:center;
+height:93.5vh;
+background:#EDFFE4;
+}
+
+/* Caja del formulario */
+
+.registro-box{
+background:#48724c;
+padding:40px;
+border-radius:12px;
+width:420px;
+box-shadow:0 8px 20px rgba(0,0,0,0.15);
+border:1px solid #ddd;
+}
+
+/* Diseño del texto */
+
+.titulo-registro{
+color:white;
+text-align:center;
+margin-bottom:20px;
+}
+
+.label-registro{
+color:white;
+}

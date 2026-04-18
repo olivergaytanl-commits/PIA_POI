@@ -1,0 +1,93 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background-color: #446447;
+}
+
+.nav-left,
+.nav-center,
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: white;
+  font-weight: bold;
+}
+
+hr{
+    margin: 0;
+}
+
+/*Este diseño se pone a todo el texto dentro de body*/
+body{
+    font-family: 'Raleway', sans-serif;
+    color:black;
+    background:#EDFFE4;
+}
+
+.perfil-card{
+    background:white;
+    padding:40px;
+    width:400px;
+    border-radius:15px;
+    text-align:center;
+    box-shadow:0px 0px 20px rgba(0,0,0,0.4);
+}
+
+.subtitulo{
+    color:black;
+    margin-bottom:25px;
+}
+
+.foto-perfil{
+    width:100px;
+    height:100px;
+    border-radius:50%;
+    border:3px solid #666F62;
+    margin:0 auto 25px auto;
+}
+
+.logros{
+    background:#EDFFE4;
+    padding:15px;
+    border-radius:10px;
+    text-align:left;
+    margin-bottom:25px;
+}
+
+.logros h3{
+    margin:0;
+    font-size:16px;
+}
+
+.logros p{
+    margin-top:5px;
+    color:#2e4d6f;
+    font-size:14px;
+}
+
+form{
+    text-align:left;
+}
+
+label{
+    display:block;
+    margin-top:15px;
+    margin-bottom:5px;
+}
+
+input{
+    width:100%;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #869181;
+    background:#EDFFE4;
+    color:white;
+}
+
+.perfil-card button{
+    margin-top: 15px;
+}

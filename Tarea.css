@@ -1,0 +1,116 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background-color: #446447;
+}
+
+.nav-left,
+.nav-center,
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: white;
+  font-weight: bold;
+}
+
+hr{
+    margin: 0;
+}
+
+.Busqueda input{
+    flex: 1;
+}
+
+.Busqueda{
+    display: flex;
+    gap:5px;
+    width:80%;
+}
+
+
+/*Este diseño se pone a todo el texto dentro de body*/
+body{
+    font-family: 'Raleway', sans-serif;
+}
+
+/*Aquí inicia el diseño de la barra lateral*/
+.layout{
+    display: flex;
+    background-color: #EDFFE4;
+}
+
+.sidebar {
+  width: 250px;
+  height: 93.7vh; /* ocupa toda la pantalla */
+  background-color: #72A877;
+  color: white;
+  padding: 20px;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar li {
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.sidebar li:hover {
+  background-color: #869181;
+}
+
+.sidebar a {
+  text-decoration: none;
+  color: white;
+  display: block;
+  padding: 10px;
+}
+/*Final de barra lateral*/
+
+/* CONTENIDO */
+
+.contenido{
+flex:1;
+padding:40px;
+}
+
+/* BOTON */
+
+.boton-tarea{
+width:100%;
+display:flex;
+justify-content:flex-end;
+}
+
+/* CONTENEDOR COLUMNAS */
+
+.contenedor-tareas{
+display:flex;
+gap:40px;
+flex-wrap:wrap;
+}
+
+/* COLUMNAS */
+
+.columna-tarea{
+background:white;
+padding:20px;
+border-radius:10px;
+width:260px;
+color:black;
+}
+
+/* TARJETAS DE TAREA */
+
+.tarjeta-tarea{
+background:#EDFFE4;
+padding:10px;
+border-radius:8px;
+margin-bottom:10px;
+}

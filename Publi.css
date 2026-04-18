@@ -1,0 +1,107 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background-color: #446447;
+}
+
+.nav-left,
+.nav-center,
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: white;
+  font-weight: bold;
+}
+
+hr{
+    margin: 0;
+}
+
+.Busqueda input{
+    flex: 1;
+}
+
+.Busqueda{
+    display: flex;
+    gap:5px;
+    width:80%;
+}
+
+
+/*Este diseño se pone a todo el texto dentro de body*/
+body{
+    font-family: 'Raleway', sans-serif;
+}
+
+/*Aquí inicia el diseño de la barra lateral*/
+.layout{
+    display: flex;
+    background-color: #EDFFE4;
+}
+
+.sidebar {
+  width: 250px;
+  height: 93.7vh; /* ocupa toda la pantalla */
+  background-color: #72A877;
+  color: white;
+  padding: 20px;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar li {
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.sidebar li:hover {
+  background-color: #869181;
+}
+
+.sidebar a {
+  text-decoration: none;
+  color: white;
+  display: block;
+  padding: 10px;
+}
+/*Final de barra lateral*/
+
+.contenido {
+  display: flex;
+  justify-content: center; /* centra horizontalmente */
+  align-items: flex-start;
+  width: 100%;
+  padding: 40px;
+}
+
+/*Caja de publicación*/
+
+.crear-post{
+     background-color: white;
+    padding: 30px;
+    width: 1200px;        /* más ancho */
+    max-width: 90%;      /* adaptable a pantallas */
+    border-radius: 12px;
+    box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
+}
+
+.crear-post h3{
+    margin-bottom: 15px;
+}
+
+.crear-post label{
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.publicar{
+    margin-top: 15px;
+    width: 100%;
+}
