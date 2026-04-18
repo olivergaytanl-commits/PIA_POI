@@ -142,3 +142,17 @@ background:#666F62;
 color:white;
 cursor:pointer;
 }
+
+.message.propio {
+    background: #446447;
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+
+.message.ajeno {
+    background: #A5B39F;
+    color: white;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+}
