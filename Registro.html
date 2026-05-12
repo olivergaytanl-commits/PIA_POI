@@ -41,7 +41,7 @@
 
         <div class="mb-3">
             <label class="label-registro form-label">Foto de perfil</label>
-            <input type="file" id="fotoP" class="form-control">
+            <input type="file" id="avatar" accept="image/*" class="form-control">
         </div>
 
         <div class="d-grid">
@@ -55,65 +55,96 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
     const API = window.location.origin;
 
-    async function registrar() {
-        const full_name = document.getElementById('full_name').value.trim();
-        const email     = document.getElementById('email').value.trim();
-        const password  = document.getElementById('password').value;
-        const btn       = document.getElementById('btnRegistrar');
+const SUPABASE_URL  = 'https://fjoiyxvhbntpcxjrrksy.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqb2l5eHZoYm50cGN4anJya3N5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MzI5NTAsImV4cCI6MjA5MjEwODk1MH0.wdqCJyqzMCiHpET3Y91PIerTwqK-u9D0jAkrtjY46zc';
+const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-        if (!full_name || !email || !password) {
-            mostrarAlerta('Completa todos los campos', '#ffe0e0', '#c00');
-            return;
-        }
-        if (password.length < 6) {
-            mostrarAlerta('La contraseña debe tener al menos 6 caracteres', '#ffe0e0', '#c00');
-            return;
-        }
+async function registrar() {
+    const full_name = document.getElementById('full_name').value.trim();
+    const email     = document.getElementById('email').value.trim();
+    const password  = document.getElementById('password').value;
+    const fileInput = document.getElementById('avatar');
+    const archivo   = fileInput?.files[0];
+    const btn       = document.getElementById('btnRegistrar');
 
-        btn.disabled = true;
-        btn.textContent = 'Creando cuenta...';
+    if (!full_name || !email || !password) {
+        mostrarAlerta('Completa todos los campos', '#ffe0e0', '#c00');
+        return;
+    }
+    if (password.length < 6) {
+        mostrarAlerta('La contraseña debe tener al menos 6 caracteres', '#ffe0e0', '#c00');
+        return;
+    }
 
-        try {
-            const res = await fetch(`${API}/api/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ full_name, email, password })
-            });
+    btn.disabled = true;
+    btn.textContent = 'Creando cuenta...';
 
-            const data = await res.json();
+    try {
+        // Subir foto si existe
+        let img_profile = null;
+        if (archivo) {
+            const nombreArchivo = `avatars/${Date.now()}_${archivo.name}`;
+            const { error: uploadError } = await sbClient
+                .storage
+                .from('media')
+                .upload(nombreArchivo, archivo);
 
-            if (!res.ok) {
-                mostrarAlerta(data.error || 'Error al registrar', '#ffe0e0', '#c00');
+            if (uploadError) {
+                mostrarAlerta('Error al subir foto', '#ffe0e0', '#c00');
                 btn.disabled = false;
                 btn.textContent = 'Crear cuenta';
                 return;
             }
 
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
+            const { data: urlData } = sbClient.storage
+                .from('media')
+                .getPublicUrl(nombreArchivo);
+            img_profile = urlData.publicUrl;
+        }
 
-            mostrarAlerta('¡Cuenta creada! Redirigiendo...', '#e0ffe8', '#1a6b2e');
-            setTimeout(() => window.location.href = 'Inicio.html', 1500);
+        // Registrar usuario
+        const res = await fetch(`${API}/api/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ full_name, email, password, img_profile })
+        });
 
-        } catch (e) {
-            mostrarAlerta('No se pudo conectar al servidor', '#ffe0e0', '#c00');
+        const data = await res.json();
+
+        if (!res.ok) {
+            mostrarAlerta(data.error || 'Error al registrar', '#ffe0e0', '#c00');
             btn.disabled = false;
             btn.textContent = 'Crear cuenta';
+            return;
         }
-    }
 
-    function mostrarAlerta(msg, bg, color) {
-        const el = document.getElementById('alerta');
-        el.textContent = msg;
-        el.style.background = bg;
-        el.style.color = color;
-        el.style.display = 'block';
-    }
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
 
-    document.addEventListener('keydown', e => { if (e.key === 'Enter') registrar(); });
+        mostrarAlerta('¡Cuenta creada! Redirigiendo...', '#e0ffe8', '#1a6b2e');
+        setTimeout(() => window.location.href = 'Inicio.html', 1500);
+
+    } catch (e) {
+        mostrarAlerta('No se pudo conectar al servidor', '#ffe0e0', '#c00');
+        btn.disabled = false;
+        btn.textContent = 'Crear cuenta';
+    }
+}
+
+function mostrarAlerta(msg, bg, color) {
+    const el = document.getElementById('alerta');
+    el.textContent = msg;
+    el.style.background = bg;
+    el.style.color = color;
+    el.style.display = 'block';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') registrar(); });
 </script>
 
 </body>
