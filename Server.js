@@ -38,13 +38,14 @@ function authMiddleware(req, res, next) {
 // POST /api/register
 app.post('/api/register', async (req, res) => {
   const { full_name, email, password, img_profile } = req.body;
+
   if (!full_name || !email || !password)
     return res.status(400).json({ error: 'Todos los campos son obligatorios' });
 
-  const { data, error } = await supabase
+  const { data: existing } = await supabase
     .from('users')
-    .insert([{ full_name, email, password: hashed, img_profile: img_profile || null }])
-    .select('id, full_name, email, img_profile')
+    .select('id')
+    .eq('email', email)
     .single();
 
   if (existing) return res.status(409).json({ error: 'El email ya está registrado' });
@@ -53,8 +54,8 @@ app.post('/api/register', async (req, res) => {
 
   const { data, error } = await supabase
     .from('users')
-    .insert([{ full_name, email, password: hashed }])
-    .select('id, full_name, email')
+    .insert([{ full_name, email, password: hashed, img_profile: img_profile || null }])
+    .select('id, full_name, email, img_profile')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
@@ -64,6 +65,7 @@ app.post('/api/register', async (req, res) => {
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
+
   res.status(201).json({ user: data, token });
 });
 
