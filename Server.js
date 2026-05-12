@@ -202,6 +202,44 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+//  PUBLICACIONES
+// ══════════════════════════════════════════════════════════════════════════════
+
+// POST /api/publicaciones
+app.post('/api/publicaciones', authMiddleware, async (req, res) => {
+  const { titulo, datos, categoria, media_url } = req.body;
+
+  if (!titulo || !datos || !categoria)
+    return res.status(400).json({ error: 'Título, datos y categoría son obligatorios' });
+
+  const { data, error } = await supabase
+    .from('publicaciones')
+    .insert([{
+      user_id:   req.user.id,
+      titulo,
+      datos,
+      categoria,
+      media_url: media_url || null
+    }])
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+// GET /api/publicaciones
+app.get('/api/publicaciones', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from('publicaciones')
+    .select('*, users(full_name)')
+    .order('created_at', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 //  START
 // ══════════════════════════════════════════════════════════════════════════════
 app.listen(PORT, () => {

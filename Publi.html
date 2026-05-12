@@ -46,13 +46,13 @@
 <form>
 
 <label>Título de la publicación</label>
-<input type="text" class="form-control" placeholder="Ingrese el título">
+<input type="text" class="form-control" id="titulo" placeholder="Ingrese el título">
 
 <label>Datos de la publicación</label>
-<textarea class="form-control" rows="4" placeholder="Describe tu publicación"></textarea>
+<textarea class="form-control" rows="4" id="datos" placeholder="Describe tu publicación"></textarea>
 
 <label>Categoría</label>
-<select class="form-select">
+<select id="categoria" class="form-select">
 <option selected disabled>Seleccione una opción</option>
 <option>Hoteles</option>
 <option>Restaurantes</option>
@@ -60,9 +60,9 @@
 </select>
 
 <label>Multimedia (opcional)</label>
-<input type="file" class="form-control" accept="image/*,video/*">
+<input type="file" id="media" class="form-control" accept="image/*,video/*">
 
-<button type="submit" class="btn btn-success publicar">
+<button onclick="publicar()" class="btn btn-success publicar">
 Publicar
 </button>
 
@@ -74,7 +74,56 @@ Publicar
 
 </div>
 
+<script>
 
+async function publicar() {
+    const titulo    = document.getElementById('titulo').value.trim();
+    const datos     = document.getElementById('datos').value.trim();
+    const categoria = document.getElementById('categoria').value;
+    const fileInput = document.getElementById('media');
+    const archivo   = fileInput.files[0]; // puede ser undefined si no subió nada
+
+    if (!titulo || !datos || !categoria)
+        return alert('⚠️ Completa todos los campos');
+
+    let media_url = null;
+
+    // Si subió archivo, primero lo mandamos a Supabase Storage
+    if (archivo) {
+        const nombreArchivo = `${Date.now()}_${archivo.name}`;
+
+        const { data, error } = await sbClient
+            .storage
+            .from('media')
+            .upload(nombreArchivo, archivo);
+
+        if (error) return alert('Error al subir archivo: ' + error.message);
+
+        // Obtenemos la URL pública
+        const { data: urlData } = sbClient
+            .storage
+            .from('media')
+            .getPublicUrl(nombreArchivo);
+
+        media_url = urlData.publicUrl;
+    }
+
+    // Ahora sí enviamos todo al backend
+    const res = await authFetch('/api/publicaciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titulo, datos, categoria, media_url })
+    });
+
+    if (res.ok) {
+        alert('✅ Publicación creada');
+    } else {
+        const d = await res.json();
+        alert(d.error || 'Error al publicar');
+    }
+}
+
+</script>
 
 </body>
 </html>
