@@ -62,9 +62,7 @@
 <label>Multimedia (opcional)</label>
 <input type="file" id="media" class="form-control" accept="image/*,video/*">
 
-<button onclick="publicar()" class="btn btn-success publicar">
-Publicar
-</button>
+<button type="button" onclick="publicar()" class="btn btn-success publicar">
 
 </form>
 
@@ -74,7 +72,23 @@ Publicar
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+
+  const SUPABASE_URL  = 'https://fjoiyxvhbntpcxjrrksy.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqb2l5eHZoYm50cGN4anJya3N5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MzI5NTAsImV4cCI6MjA5MjEwODk1MH0.wdqCJyqzMCiHpET3Y91PIerTwqK-u9D0jAkrtjY46zc';
+
+  const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const token = localStorage.getItem('token');
+
+  function authFetch(url, opts = {}) {
+    return fetch(url, {
+        ...opts,
+        headers: { ...(opts.headers || {}), 'Authorization': `Bearer ${token}` }
+    });
+}
 
 async function publicar() {
     const titulo    = document.getElementById('titulo').value.trim();
