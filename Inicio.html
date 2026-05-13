@@ -42,7 +42,11 @@ Filtros
 
 </div>
           
-    <a href="Registro.html" class="sesion nav-right">Info</a>
+<div class="nav-right d-flex align-items-center gap-2">
+    <img id="navAvatar" src="perfil.jpg" 
+         style="width:35px; height:35px; border-radius:50%; object-fit:cover;">
+    <span id="navNombre" style="color:white; font-weight:bold;"></span>
+</div>
 
 </nav>
 
@@ -77,6 +81,15 @@ Filtros
 
 <script>
     const token = localStorage.getItem('token');
+
+    const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+
+    if (currentUser) {
+        document.getElementById('navNombre').textContent = currentUser.full_name;
+        if (currentUser.img_profile) {
+            document.getElementById('navAvatar').src = currentUser.img_profile;
+        }
+    }
 
     function authFetch(url, opts = {}) {
         return fetch(url, {
