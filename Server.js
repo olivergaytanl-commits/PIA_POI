@@ -234,7 +234,7 @@ app.post('/api/publicaciones', authMiddleware, async (req, res) => {
 app.get('/api/publicaciones', authMiddleware, async (req, res) => {
   const { data, error } = await supabase
     .from('publicaciones')
-    .select('*, users(full_name)')
+    .select('*, users(full_name, img_profile)')
     .order('created_at', { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });

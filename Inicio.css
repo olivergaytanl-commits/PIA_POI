@@ -141,8 +141,10 @@ body{
 
 /*IMAGEN DEL POST*/
 
-.post-imagen{
-  width:100%;
-  border-radius:10px;
-  margin-top:10px;
+.post-imagen {
+    width: 100%;
+    max-height: 300px;  /* agrega esto */
+    object-fit: cover;  /* y esto */
+    border-radius: 10px;
+    margin-top: 10px;
 }
