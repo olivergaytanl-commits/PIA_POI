@@ -78,12 +78,14 @@ body{
 
 /*CONTENEDOR DE POSTS*/
 
-.contenido{
-  display:flex;
-  flex-direction:column;
-  gap:20px;
-  padding:30px;
-  width:100%;
+.contenido {
+    height: calc(100vh - 80px); /* altura de la pantalla menos el navbar */
+    overflow-y: auto;           /* scroll vertical */
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 30px;
+    width: 100%;
 }
 
 /*POST*/
