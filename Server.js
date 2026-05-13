@@ -91,7 +91,11 @@ app.post('/api/login', async (req, res) => {
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
-  res.json({ user: { id: user.id, full_name: user.full_name, email: user.email }, token });
+  // Antes
+res.json({ user: { id: user.id, full_name: user.full_name, email: user.email }, token });
+
+// Después
+res.json({ user: { id: user.id, full_name: user.full_name, email: user.email, img_profile: user.img_profile }, token });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
