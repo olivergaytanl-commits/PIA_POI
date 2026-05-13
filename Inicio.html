@@ -85,6 +85,15 @@ Filtros
         });
     }
 
+    function colorCategoria(cat) {
+    const colores = {
+        'Hoteles':      '#4A90D9',
+        'Restaurantes': '#E07B39',
+        'Recreación':   '#9B59B6'
+    };
+    return colores[cat] || '#72A877'; // verde por default
+    }
+
     async function cargarPublicaciones() {
         const res  = await authFetch('/api/publicaciones');
         const data = await res.json();
@@ -105,7 +114,7 @@ Filtros
                     <span class="usuario">${p.users?.full_name || 'Usuario'}</span>
                 </div>
                 <h4 class="post-titulo">${p.titulo}</h4>
-                <span class="categoria">${p.categoria}</span>
+                <span class="categoria" style="background:${colorCategoria(p.categoria)}">${p.categoria}</span>
                 <p class="post-texto">${p.datos}</p>
                 ${p.media_url ? `<img src="${p.media_url}" class="post-imagen">` : ''}
             `;
