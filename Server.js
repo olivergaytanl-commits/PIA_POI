@@ -52,8 +52,10 @@ io.on('connection', (socket) => {
         from: connectedUsers.get(socket.id),
         signal: signalData
       });
+      console.log(`📞 Llamada de ${from} a ${to}`);
     } else {
       socket.emit('user-offline', { userId: to });
+      console.log(`❌ Usuario ${to} no está conectado`);
     }
   });
 
@@ -62,6 +64,7 @@ io.on('connection', (socket) => {
     const targetSocket = getSocketIdByUserId(to);
     if (targetSocket) {
       io.to(targetSocket).emit('call-accepted', { signal });
+      console.log(`✅ Llamada aceptada por ${to}`);
     }
   });
 
@@ -70,6 +73,7 @@ io.on('connection', (socket) => {
     const targetSocket = getSocketIdByUserId(to);
     if (targetSocket) {
       io.to(targetSocket).emit('call-rejected');
+      console.log(`❌ Llamada rechazada por ${to}`);
     }
   });
 
@@ -78,6 +82,7 @@ io.on('connection', (socket) => {
     const targetSocket = getSocketIdByUserId(to);
     if (targetSocket) {
       io.to(targetSocket).emit('call-ended');
+      console.log(`🔴 Llamada finalizada con ${to}`);
     }
   });
 
@@ -114,7 +119,7 @@ function authMiddleware(req, res, next) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  TODOS TUS ENDPOINTS EXISTENTES (auth, usuarios, amigos, mensajes, publicaciones)
+//  AUTH
 // ══════════════════════════════════════════════════════════════════════════════
 
 // POST /api/register
@@ -176,6 +181,10 @@ app.post('/api/login', async (req, res) => {
   res.json({ user: { id: user.id, full_name: user.full_name, email: user.email, img_profile: user.img_profile }, token });
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  USUARIOS
+// ══════════════════════════════════════════════════════════════════════════════
+
 // GET /api/users/search?q=nombre
 app.get('/api/users/search', authMiddleware, async (req, res) => {
   const q = req.query.q || '';
@@ -189,6 +198,10 @@ app.get('/api/users/search', authMiddleware, async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  AMIGOS
+// ══════════════════════════════════════════════════════════════════════════════
 
 // GET /api/friends
 app.get('/api/friends', authMiddleware, async (req, res) => {
@@ -237,6 +250,10 @@ app.post('/api/friends', authMiddleware, async (req, res) => {
   res.status(201).json(data);
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  MENSAJES
+// ══════════════════════════════════════════════════════════════════════════════
+
 function buildChatId(id1, id2) {
   return [id1, id2].sort().join('_');
 }
@@ -273,6 +290,10 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
   res.status(201).json(data);
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+//  PUBLICACIONES
+// ══════════════════════════════════════════════════════════════════════════════
+
 // POST /api/publicaciones
 app.post('/api/publicaciones', authMiddleware, async (req, res) => {
   const { titulo, datos, categoria, media_url } = req.body;
@@ -307,7 +328,9 @@ app.get('/api/publicaciones', authMiddleware, async (req, res) => {
   res.json(data);
 });
 
-// START
+// ══════════════════════════════════════════════════════════════════════════════
+//  START
+// ══════════════════════════════════════════════════════════════════════════════
 server.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
   console.log(`📹 Video calls habilitado con Socket.IO`);
