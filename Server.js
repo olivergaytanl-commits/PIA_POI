@@ -4,8 +4,18 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
+const http = require('http');
+const socketIo = require('socket.io');
 
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 
 // ── Supabase ──────────────────────────────────────────────────────────────────
@@ -18,6 +28,78 @@ const supabase = createClient(
 app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
+
+// ── Almacenamiento de usuarios conectados para video ─────────────────────────
+const connectedUsers = new Map(); // socketId -> { userId, userName }
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SOCKET.IO PARA VIDEOLLAMADAS
+// ══════════════════════════════════════════════════════════════════════════════
+io.on('connection', (socket) => {
+  console.log('🔌 Nuevo cliente conectado:', socket.id);
+
+  // Registrar usuario
+  socket.on('register-user', ({ userId, userName }) => {
+    connectedUsers.set(socket.id, { userId, userName });
+    console.log(`👤 Usuario registrado: ${userName} (${userId})`);
+  });
+
+  // Iniciar videollamada
+  socket.on('call-user', ({ to, from, signalData }) => {
+    const targetSocket = getSocketIdByUserId(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit('incoming-call', {
+        from: connectedUsers.get(socket.id),
+        signal: signalData
+      });
+    } else {
+      socket.emit('user-offline', { userId: to });
+    }
+  });
+
+  // Aceptar llamada
+  socket.on('accept-call', ({ to, signal }) => {
+    const targetSocket = getSocketIdByUserId(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit('call-accepted', { signal });
+    }
+  });
+
+  // Rechazar llamada
+  socket.on('reject-call', ({ to }) => {
+    const targetSocket = getSocketIdByUserId(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit('call-rejected');
+    }
+  });
+
+  // Colgar llamada
+  socket.on('hangup', ({ to }) => {
+    const targetSocket = getSocketIdByUserId(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit('call-ended');
+    }
+  });
+
+  // Desconexión
+  socket.on('disconnect', () => {
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      console.log(`👋 Usuario desconectado: ${user.userName}`);
+      connectedUsers.delete(socket.id);
+    }
+  });
+});
+
+// Helper para obtener socketId por userId
+function getSocketIdByUserId(userId) {
+  for (const [socketId, user] of connectedUsers.entries()) {
+    if (user.userId === userId) {
+      return socketId;
+    }
+  }
+  return null;
+}
 
 // ── Helper: verificar JWT ─────────────────────────────────────────────────────
 function authMiddleware(req, res, next) {
@@ -32,7 +114,7 @@ function authMiddleware(req, res, next) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  AUTH
+//  TODOS TUS ENDPOINTS EXISTENTES (auth, usuarios, amigos, mensajes, publicaciones)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // POST /api/register
@@ -94,10 +176,6 @@ app.post('/api/login', async (req, res) => {
   res.json({ user: { id: user.id, full_name: user.full_name, email: user.email, img_profile: user.img_profile }, token });
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  USUARIOS
-// ══════════════════════════════════════════════════════════════════════════════
-
 // GET /api/users/search?q=nombre
 app.get('/api/users/search', authMiddleware, async (req, res) => {
   const q = req.query.q || '';
@@ -111,10 +189,6 @@ app.get('/api/users/search', authMiddleware, async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  AMIGOS
-// ══════════════════════════════════════════════════════════════════════════════
 
 // GET /api/friends
 app.get('/api/friends', authMiddleware, async (req, res) => {
@@ -163,10 +237,6 @@ app.post('/api/friends', authMiddleware, async (req, res) => {
   res.status(201).json(data);
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  MENSAJES
-// ══════════════════════════════════════════════════════════════════════════════
-
 function buildChatId(id1, id2) {
   return [id1, id2].sort().join('_');
 }
@@ -203,10 +273,6 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
   res.status(201).json(data);
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  PUBLICACIONES
-// ══════════════════════════════════════════════════════════════════════════════
-
 // POST /api/publicaciones
 app.post('/api/publicaciones', authMiddleware, async (req, res) => {
   const { titulo, datos, categoria, media_url } = req.body;
@@ -241,9 +307,8 @@ app.get('/api/publicaciones', authMiddleware, async (req, res) => {
   res.json(data);
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  START
-// ══════════════════════════════════════════════════════════════════════════════
-app.listen(PORT, () => {
+// START
+server.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`📹 Video calls habilitado con Socket.IO`);
 });
