@@ -102,7 +102,6 @@
 // ─────────────────────────────────────────────────────────
 const SUPABASE_URL  = 'https://fjoiyxvhbntpcxjrrksy.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqb2l5eHZoYm50cGN4anJya3N5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MzI5NTAsImV4cCI6MjA5MjEwODk1MH0.wdqCJyqzMCiHpET3Y91PIerTwqK-u9D0jAkrtjY46zc';
-const API           = window.location.origin;
 
 const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -119,7 +118,7 @@ let pendingCallSignal = null;
 let pendingCaller = null;
 
 // ─────────────────────────────────────────────────────────
-//  CLASE PARA VIDEOLLAMADAS
+//  CLASE PARA VIDEOLLAMADAS (CORREGIDA)
 // ─────────────────────────────────────────────────────────
 class VideoCallManager {
     constructor(socket, currentUser) {
@@ -130,7 +129,6 @@ class VideoCallManager {
         this.remoteStream = null;
         this.isInCall = false;
         this.currentCallWith = null;
-        this.isInitiator = false;
         
         this.configuration = {
             iceServers: [
@@ -139,101 +137,34 @@ class VideoCallManager {
                 { urls: 'stun:stun2.l.google.com:19302' },
                 { urls: 'stun:stun3.l.google.com:19302' },
                 { urls: 'stun:stun4.l.google.com:19302' }
-            ],
-            iceCandidatePoolSize: 10
+            ]
         };
     }
 
     async initLocalStream() {
         try {
-            console.log('Solicitando acceso a cámara/micrófono...');
+            console.log('📷 Solicitando acceso a cámara/micrófono...');
             this.localStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
+                video: true,
                 audio: true
             });
-            console.log('Stream obtenido correctamente');
+            console.log('✅ Stream obtenido correctamente');
             
-            // Mostrar video local inmediatamente
-            this.setupVideoElements();
-            
+            const localVideo = document.getElementById('localVideo');
+            if (localVideo) {
+                localVideo.srcObject = this.localStream;
+                console.log('📹 Video local configurado');
+            }
             return true;
         } catch (error) {
-            console.error('Error al acceder a dispositivos:', error);
+            console.error('❌ Error al acceder a dispositivos:', error);
             alert('No se pudo acceder a la cámara/micrófono. Por favor verifica los permisos.');
             return false;
         }
     }
 
-    setupVideoElements() {
-        const localVideo = document.getElementById('localVideo');
-        if (localVideo && this.localStream) {
-            localVideo.srcObject = this.localStream;
-            console.log('Video local configurado');
-        }
-    }
-
-    async createPeerConnection() {
-        this.peerConnection = new RTCPeerConnection(this.configuration);
-        
-        // Añadir tracks locales
-        if (this.localStream) {
-            this.localStream.getTracks().forEach(track => {
-                this.peerConnection.addTrack(track, this.localStream);
-                console.log('Track añadido:', track.kind);
-            });
-        }
-        
-        // Manejar tracks remotos
-        this.peerConnection.ontrack = (event) => {
-            console.log('Recibiendo track remoto:', event.track.kind);
-            if (event.streams && event.streams[0]) {
-                this.remoteStream = event.streams[0];
-                const remoteVideo = document.getElementById('remoteVideo');
-                if (remoteVideo) {
-                    remoteVideo.srcObject = this.remoteStream;
-                    console.log('Video remoto configurado');
-                }
-            }
-        };
-        
-        // Manejar ICE candidates
-        this.peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                console.log('Enviando ICE candidate');
-                if (this.isInitiator) {
-                    this.socket.emit('call-user', {
-                        to: this.currentCallWith.id,
-                        from: this.currentUser.id,
-                        signalData: event.candidate
-                    });
-                } else {
-                    this.socket.emit('accept-call', {
-                        to: this.currentCallWith.id,
-                        signal: event.candidate
-                    });
-                }
-            }
-        };
-        
-        // Manejar cambios de estado
-        this.peerConnection.onconnectionstatechange = () => {
-            console.log('Connection state:', this.peerConnection.connectionState);
-            if (this.peerConnection.connectionState === 'connected') {
-                console.log('¡Conexión establecida exitosamente!');
-            } else if (this.peerConnection.connectionState === 'failed') {
-                console.error('Conexión fallida');
-                this.endCall();
-                alert('La conexión de video falló. Intenta nuevamente.');
-            }
-        };
-    }
-
     async startCall(targetUserId, targetUserName) {
-        console.log('Iniciando llamada a:', targetUserName);
-        this.isInitiator = true;
+        console.log(`📞 Iniciando llamada a: ${targetUserName}`);
         
         if (!this.localStream) {
             const success = await this.initLocalStream();
@@ -242,12 +173,53 @@ class VideoCallManager {
 
         this.currentCallWith = { id: targetUserId, name: targetUserName };
         
-        await this.createPeerConnection();
+        // Crear conexión peer
+        this.peerConnection = new RTCPeerConnection(this.configuration);
+        
+        // Añadir stream local
+        this.localStream.getTracks().forEach(track => {
+            this.peerConnection.addTrack(track, this.localStream);
+            console.log(`➕ Track añadido: ${track.kind}`);
+        });
+        
+        // Manejar stream remoto
+        this.peerConnection.ontrack = (event) => {
+            console.log('📡 Recibiendo stream remoto');
+            this.remoteStream = event.streams[0];
+            const remoteVideo = document.getElementById('remoteVideo');
+            if (remoteVideo) {
+                remoteVideo.srcObject = this.remoteStream;
+                console.log('📹 Video remoto configurado');
+            }
+        };
+        
+        // Manejar ICE candidates
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log('🔄 Enviando ICE candidate');
+                this.socket.emit('call-user', {
+                    to: targetUserId,
+                    from: this.currentUser.id,
+                    signalData: event.candidate
+                });
+            }
+        };
+        
+        // Estado de la conexión
+        this.peerConnection.onconnectionstatechange = () => {
+            console.log(`🔌 Estado conexión: ${this.peerConnection.connectionState}`);
+            if (this.peerConnection.connectionState === 'connected') {
+                console.log('✅ Conexión establecida exitosamente!');
+            } else if (this.peerConnection.connectionState === 'failed') {
+                console.error('❌ Conexión fallida');
+                this.endCall();
+            }
+        };
         
         try {
             const offer = await this.peerConnection.createOffer();
             await this.peerConnection.setLocalDescription(offer);
-            console.log('Offer creado y establecido');
+            console.log('📤 Offer creado y enviado');
             
             this.socket.emit('call-user', {
                 to: targetUserId,
@@ -257,16 +229,13 @@ class VideoCallManager {
             
             this.isInCall = true;
             this.showCallUI(true);
-            console.log('Llamada iniciada - esperando respuesta');
         } catch (error) {
-            console.error('Error al iniciar llamada:', error);
-            alert('Error al iniciar la llamada: ' + error.message);
+            console.error('❌ Error al iniciar llamada:', error);
         }
     }
 
     async acceptCall(fromUserId, signal) {
-        console.log('Aceptando llamada de:', fromUserId);
-        this.isInitiator = false;
+        console.log(`📞 Aceptando llamada de: ${fromUserId}`);
         
         if (!this.localStream) {
             const success = await this.initLocalStream();
@@ -275,15 +244,44 @@ class VideoCallManager {
 
         this.currentCallWith = { id: fromUserId, name: '' };
         
-        await this.createPeerConnection();
+        // Crear conexión peer
+        this.peerConnection = new RTCPeerConnection(this.configuration);
+        
+        // Añadir stream local
+        this.localStream.getTracks().forEach(track => {
+            this.peerConnection.addTrack(track, this.localStream);
+            console.log(`➕ Track añadido: ${track.kind}`);
+        });
+        
+        // Manejar stream remoto
+        this.peerConnection.ontrack = (event) => {
+            console.log('📡 Recibiendo stream remoto');
+            this.remoteStream = event.streams[0];
+            const remoteVideo = document.getElementById('remoteVideo');
+            if (remoteVideo) {
+                remoteVideo.srcObject = this.remoteStream;
+                console.log('📹 Video remoto configurado');
+            }
+        };
+        
+        // Manejar ICE candidates
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log('🔄 Enviando ICE candidate');
+                this.socket.emit('accept-call', {
+                    to: fromUserId,
+                    signal: event.candidate
+                });
+            }
+        };
         
         try {
             await this.peerConnection.setRemoteDescription(signal);
-            console.log('Remote description establecida');
+            console.log('📥 Remote description establecida');
             
             const answer = await this.peerConnection.createAnswer();
             await this.peerConnection.setLocalDescription(answer);
-            console.log('Answer creado y establecido');
+            console.log('📤 Answer creado y enviado');
             
             this.socket.emit('accept-call', {
                 to: fromUserId,
@@ -292,22 +290,20 @@ class VideoCallManager {
             
             this.isInCall = true;
             this.showCallUI(true);
-            console.log('Llamada aceptada - esperando conexión');
         } catch (error) {
-            console.error('Error al aceptar llamada:', error);
-            alert('Error al aceptar la llamada: ' + error.message);
+            console.error('❌ Error al aceptar llamada:', error);
         }
     }
 
     async handleRemoteSignal(signal) {
         if (!this.peerConnection) {
-            console.log('Peer connection no existe, creando...');
-            await this.createPeerConnection();
+            console.log('⚠️ Peer connection no existe');
+            return;
         }
         
         try {
             if (signal.type === 'offer') {
-                console.log('Recibido offer');
+                console.log('📥 Recibido offer');
                 await this.peerConnection.setRemoteDescription(signal);
                 const answer = await this.peerConnection.createAnswer();
                 await this.peerConnection.setLocalDescription(answer);
@@ -315,27 +311,23 @@ class VideoCallManager {
                     to: this.currentCallWith.id,
                     signal: answer
                 });
-                console.log('Answer enviado');
+                console.log('📤 Answer enviado');
             } else if (signal.type === 'answer') {
-                console.log('Recibido answer');
+                console.log('📥 Recibido answer');
                 await this.peerConnection.setRemoteDescription(signal);
-                console.log('Remote description establecida correctamente');
+                console.log('✅ Remote description establecida');
             } else if (signal.candidate) {
-                console.log('Recibido ICE candidate');
-                try {
-                    await this.peerConnection.addIceCandidate(signal);
-                    console.log('ICE candidate añadido correctamente');
-                } catch (e) {
-                    console.error('Error añadiendo ICE candidate:', e);
-                }
+                console.log('📥 Recibido ICE candidate');
+                await this.peerConnection.addIceCandidate(signal);
+                console.log('✅ ICE candidate añadido');
             }
         } catch (error) {
-            console.error('Error manejando señal remota:', error);
+            console.error('❌ Error manejando señal:', error);
         }
     }
 
     endCall() {
-        console.log('Finalizando llamada');
+        console.log('🔴 Finalizando llamada');
         
         if (this.peerConnection) {
             this.peerConnection.close();
@@ -349,7 +341,6 @@ class VideoCallManager {
         
         this.remoteStream = null;
         this.isInCall = false;
-        this.isInitiator = false;
         
         if (this.currentCallWith) {
             this.socket.emit('hangup', { to: this.currentCallWith.id });
@@ -362,8 +353,6 @@ class VideoCallManager {
         const remoteVideo = document.getElementById('remoteVideo');
         if (localVideo) localVideo.srcObject = null;
         if (remoteVideo) remoteVideo.srcObject = null;
-        
-        console.log('Llamada finalizada');
     }
 
     showCallUI(inCall) {
@@ -379,7 +368,7 @@ class VideoCallManager {
 //  INIT
 // ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-    token       = localStorage.getItem('token');
+    token = localStorage.getItem('token');
     currentUser = JSON.parse(localStorage.getItem('user') || 'null');
 
     if (!token || !currentUser) {
@@ -396,10 +385,10 @@ window.addEventListener('DOMContentLoaded', () => {
 //  SOCKET Y VIDEO
 // ─────────────────────────────────────────────────────────
 function initSocketAndVideo() {
-    socket = io(window.location.origin);
+    socket = io();
     
     socket.on('connect', () => {
-        console.log('Socket conectado');
+        console.log('✅ Socket conectado');
         socket.emit('register-user', {
             userId: currentUser.id,
             userName: currentUser.full_name
@@ -408,20 +397,20 @@ function initSocketAndVideo() {
     
     videoCallManager = new VideoCallManager(socket, currentUser);
     
-    socket.on('incoming-call', async ({ from, signal }) => {
-        console.log('Llamada entrante de:', from);
+    socket.on('incoming-call', ({ from, signal }) => {
+        console.log('📞 Llamada entrante de:', from);
         pendingCallSignal = signal;
         pendingCaller = from;
         showIncomingCall(from, signal);
     });
     
-    socket.on('call-accepted', async ({ signal }) => {
-        console.log('Llamada aceptada');
-        await videoCallManager.handleRemoteSignal(signal);
+    socket.on('call-accepted', ({ signal }) => {
+        console.log('✅ Llamada aceptada');
+        videoCallManager.handleRemoteSignal(signal);
     });
     
     socket.on('call-ended', () => {
-        console.log('Llamada finalizada por el otro usuario');
+        console.log('🔴 Llamada finalizada');
         if (videoCallManager.isInCall) {
             videoCallManager.endCall();
             alert('La llamada ha terminado');
@@ -429,13 +418,13 @@ function initSocketAndVideo() {
     });
     
     socket.on('call-rejected', () => {
-        console.log('Llamada rechazada');
+        console.log('❌ Llamada rechazada');
         videoCallManager.endCall();
         alert('La llamada fue rechazada');
     });
     
-    socket.on('user-offline', ({ userId }) => {
-        alert('El usuario no está disponible en este momento');
+    socket.on('user-offline', () => {
+        alert('El usuario no está disponible');
         videoCallManager.endCall();
     });
 }
@@ -447,90 +436,58 @@ function showIncomingCall(caller, signal) {
     }
     
     const notification = document.getElementById('incomingCallNotification');
-    const callerNameSpan = document.getElementById('callerName');
-    
-    callerNameSpan.textContent = caller.userName;
+    document.getElementById('callerName').textContent = caller.userName;
     notification.style.display = 'block';
     
-    const acceptBtn = document.getElementById('acceptCallBtn');
-    const newAcceptBtn = acceptBtn.cloneNode(true);
-    acceptBtn.parentNode.replaceChild(newAcceptBtn, acceptBtn);
-    
-    newAcceptBtn.onclick = async () => {
+    document.getElementById('acceptCallBtn').onclick = async () => {
         notification.style.display = 'none';
-        await videoCallManager.acceptCall(pendingCaller.userId, pendingCallSignal);
-        pendingCallSignal = null;
-        pendingCaller = null;
+        await videoCallManager.acceptCall(caller.userId, signal);
     };
     
-    const rejectBtn = document.getElementById('rejectCallBtn');
-    const newRejectBtn = rejectBtn.cloneNode(true);
-    rejectBtn.parentNode.replaceChild(newRejectBtn, rejectBtn);
-    
-    newRejectBtn.onclick = () => {
+    document.getElementById('rejectCallBtn').onclick = () => {
         notification.style.display = 'none';
-        socket.emit('reject-call', { to: pendingCaller.userId });
-        pendingCallSignal = null;
-        pendingCaller = null;
+        socket.emit('reject-call', { to: caller.userId });
     };
     
     setTimeout(() => {
         if (notification.style.display === 'block') {
             notification.style.display = 'none';
-            if (pendingCallSignal) {
-                socket.emit('reject-call', { to: pendingCaller?.userId });
-                pendingCallSignal = null;
-                pendingCaller = null;
-            }
+            socket.emit('reject-call', { to: caller.userId });
         }
     }, 30000);
 }
 
 function setupVideoControls() {
-    const toggleMicBtn = document.getElementById('toggleMicBtn');
-    const toggleVideoBtn = document.getElementById('toggleVideoBtn');
-    const endCallBtn = document.getElementById('endCallBtn');
+    document.getElementById('toggleMicBtn').onclick = () => {
+        if (videoCallManager && videoCallManager.localStream) {
+            const audioTrack = videoCallManager.localStream.getAudioTracks()[0];
+            audioTrack.enabled = !audioTrack.enabled;
+            document.getElementById('toggleMicBtn').textContent = 
+                audioTrack.enabled ? '🎤 Micrófono' : '🔇 Micrófono OFF';
+        }
+    };
     
-    if (toggleMicBtn) {
-        toggleMicBtn.onclick = () => {
-            if (videoCallManager && videoCallManager.localStream) {
-                const audioTrack = videoCallManager.localStream.getAudioTracks()[0];
-                if (audioTrack) {
-                    audioTrack.enabled = !audioTrack.enabled;
-                    toggleMicBtn.textContent = audioTrack.enabled ? '🎤 Micrófono' : '🔇 Micrófono OFF';
-                }
-            }
-        };
-    }
+    document.getElementById('toggleVideoBtn').onclick = () => {
+        if (videoCallManager && videoCallManager.localStream) {
+            const videoTrack = videoCallManager.localStream.getVideoTracks()[0];
+            videoTrack.enabled = !videoTrack.enabled;
+            document.getElementById('toggleVideoBtn').textContent = 
+                videoTrack.enabled ? '📷 Cámara' : '📷 Cámara OFF';
+        }
+    };
     
-    if (toggleVideoBtn) {
-        toggleVideoBtn.onclick = () => {
-            if (videoCallManager && videoCallManager.localStream) {
-                const videoTrack = videoCallManager.localStream.getVideoTracks()[0];
-                if (videoTrack) {
-                    videoTrack.enabled = !videoTrack.enabled;
-                    toggleVideoBtn.textContent = videoTrack.enabled ? '📷 Cámara' : '📷 Cámara OFF';
-                }
-            }
-        };
-    }
-    
-    if (endCallBtn) {
-        endCallBtn.onclick = () => {
-            if (videoCallManager) {
-                videoCallManager.endCall();
-            }
-        };
-    }
+    document.getElementById('endCallBtn').onclick = () => {
+        if (videoCallManager) videoCallManager.endCall();
+    };
 }
 
 // ─────────────────────────────────────────────────────────
 //  AMIGOS
 // ─────────────────────────────────────────────────────────
 async function cargarAmigos() {
-    const res   = await authFetch('/api/friends');
+    const res = await authFetch('/api/friends');
     const lista = await res.json();
-    const cont  = document.getElementById('listaAmigos');
+    const cont = document.getElementById('listaAmigos');
     cont.innerHTML = '';
 
     if (!lista.length) {
@@ -541,7 +498,6 @@ async function cargarAmigos() {
     lista.forEach(u => {
         const div = document.createElement('div');
         div.className = 'user-item';
-        div.title = u.full_name;
         div.innerHTML = `
             <div class="user-avatar">${iniciales(u.full_name)}</div>
             <span class="user-name">${u.full_name}</span>`;
@@ -550,16 +506,13 @@ async function cargarAmigos() {
     });
 }
 
-// ─────────────────────────────────────────────────────────
-//  BÚSQUEDA
-// ─────────────────────────────────────────────────────────
 async function buscarUsuario() {
-    const q    = document.getElementById('buscarInput').value.trim();
+    const q = document.getElementById('buscarInput').value.trim();
     if (!q) return;
 
-    const res   = await authFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+    const res = await authFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
     const users = await res.json();
-    const drop  = document.getElementById('resultadosBusqueda');
+    const drop = document.getElementById('resultadosBusqueda');
 
     if (!users.length) {
         drop.innerHTML = '<div class="res-item">Sin resultados</div>';
@@ -602,9 +555,6 @@ document.addEventListener('click', e => {
         document.getElementById('resultadosBusqueda').style.display = 'none';
 });
 
-// ─────────────────────────────────────────────────────────
-//  CHAT
-// ─────────────────────────────────────────────────────────
 async function abrirChat(friend, el) {
     activeFriend = friend;
 
@@ -626,8 +576,6 @@ async function abrirChat(friend, el) {
 }
 
 async function startVideoCall() {
-    console.log('Iniciando videollamada...');
-    
     if (!activeFriend) {
         alert('Selecciona un contacto primero');
         return;
@@ -638,5 +586,33 @@ async function startVideoCall() {
         return;
     }
     
-    try {
-        await videoCallManager.start
+    await videoCallManager.startCall(activeFriend.id, activeFriend.full_name);
+}
+
+async function cargarMensajes() {
+    const res = await authFetch(`/api/messages/${activeFriend.id}`);
+    const msgs = await res.json();
+    const cont = document.getElementById('chatMessages');
+    cont.innerHTML = '';
+    msgs.forEach(m => agregarBurbuja(m));
+    cont.scrollTop = cont.scrollHeight;
+}
+
+function agregarBurbuja(m) {
+    const cont = document.getElementById('chatMessages');
+    const esMio = m.username === currentUser.full_name;
+    const div = document.createElement('div');
+    div.className = 'message ' + (esMio ? 'propio' : 'ajeno');
+    div.innerHTML = `
+        ${!esMio ? `<span class="msg-autor">${m.username}</span>` : ''}
+        <p>${escapeHtml(m.message)}</p>
+        <span class="msg-hora">${formatHora(m.created_at)}</span>`;
+    cont.appendChild(div);
+    cont.scrollTop = cont.scrollHeight;
+}
+
+async function enviarMensaje() {
+    if (!activeFriend) return;
+    const input = document.getElementById('msgInput');
+    const text = input.value.trim();
+    if (!text
