@@ -42,8 +42,6 @@
             </div>
         </div>
 
-        <hr>
-
         <div class="chat-messages" id="chatMessages"></div>
 
         <!-- INPUT -->
@@ -118,7 +116,7 @@ let pendingCallSignal = null;
 let pendingCaller = null;
 
 // ─────────────────────────────────────────────────────────
-//  CLASE PARA VIDEOLLAMADAS (CORREGIDA)
+//  CLASE PARA VIDEOLLAMADAS
 // ─────────────────────────────────────────────────────────
 class VideoCallManager {
     constructor(socket, currentUser) {
@@ -458,27 +456,41 @@ function showIncomingCall(caller, signal) {
 }
 
 function setupVideoControls() {
-    document.getElementById('toggleMicBtn').onclick = () => {
-        if (videoCallManager && videoCallManager.localStream) {
-            const audioTrack = videoCallManager.localStream.getAudioTracks()[0];
-            audioTrack.enabled = !audioTrack.enabled;
-            document.getElementById('toggleMicBtn').textContent = 
-                audioTrack.enabled ? '🎤 Micrófono' : '🔇 Micrófono OFF';
-        }
-    };
+    const toggleMicBtn = document.getElementById('toggleMicBtn');
+    const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+    const endCallBtn = document.getElementById('endCallBtn');
     
-    document.getElementById('toggleVideoBtn').onclick = () => {
-        if (videoCallManager && videoCallManager.localStream) {
-            const videoTrack = videoCallManager.localStream.getVideoTracks()[0];
-            videoTrack.enabled = !videoTrack.enabled;
-            document.getElementById('toggleVideoBtn').textContent = 
-                videoTrack.enabled ? '📷 Cámara' : '📷 Cámara OFF';
-        }
-    };
+    if (toggleMicBtn) {
+        toggleMicBtn.onclick = () => {
+            if (videoCallManager && videoCallManager.localStream) {
+                const audioTrack = videoCallManager.localStream.getAudioTracks()[0];
+                if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    toggleMicBtn.textContent = audioTrack.enabled ? '🎤 Micrófono' : '🔇 Micrófono OFF';
+                }
+            }
+        };
+    }
     
-    document.getElementById('endCallBtn').onclick = () => {
-        if (videoCallManager) videoCallManager.endCall();
-    };
+    if (toggleVideoBtn) {
+        toggleVideoBtn.onclick = () => {
+            if (videoCallManager && videoCallManager.localStream) {
+                const videoTrack = videoCallManager.localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = !videoTrack.enabled;
+                    toggleVideoBtn.textContent = videoTrack.enabled ? '📷 Cámara' : '📷 Cámara OFF';
+                }
+            }
+        };
+    }
+    
+    if (endCallBtn) {
+        endCallBtn.onclick = () => {
+            if (videoCallManager) {
+                videoCallManager.endCall();
+            }
+        };
+    }
 }
 
 // ─────────────────────────────────────────────────────────
@@ -491,17 +503,21 @@ async function cargarAmigos() {
     cont.innerHTML = '';
 
     if (!lista.length) {
-        cont.innerHTML = '<p class="sin-amigos">Busca usuarios<br>y agrégalos</p>';
+        cont.innerHTML = '<div class="user" style="margin-top: 20px;"></div><p class="sin-amigos" style="color: white; text-align: center;">Busca usuarios<br>y agrégalos</p>';
         return;
     }
 
     lista.forEach(u => {
         const div = document.createElement('div');
-        div.className = 'user-item';
-        div.innerHTML = `
-            <div class="user-avatar">${iniciales(u.full_name)}</div>
-            <span class="user-name">${u.full_name}</span>`;
-        div.onclick = (e) => abrirChat(u, e.currentTarget);
+        div.className = 'user';
+        div.title = u.full_name;
+        div.style.cursor = 'pointer';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.justifyContent = 'center';
+        div.style.background = '#2b3a4f';
+        div.innerHTML = `${iniciales(u.full_name)}`;
+        div.onclick = (e) => abrirChat(u, div);
         cont.appendChild(div);
     });
 }
@@ -521,13 +537,22 @@ async function buscarUsuario() {
     }
 
     drop.innerHTML = '';
+    drop.style.background = 'white';
+    drop.style.color = 'black';
+    drop.style.padding = '10px';
+    drop.style.borderRadius = '5px';
+    
     users.forEach(u => {
         const div = document.createElement('div');
         div.className = 'res-item';
+        div.style.padding = '10px';
+        div.style.borderBottom = '1px solid #ccc';
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
         div.innerHTML = `
             <strong>${u.full_name}</strong>
             <span>${u.email}</span>
-            <button onclick="agregarAmigo(${u.id}, '${u.full_name}')">+ Agregar</button>`;
+            <button onclick="agregarAmigo(${u.id}, '${u.full_name}')" style="background:#446447; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">+ Agregar</button>`;
         drop.appendChild(div);
     });
     drop.style.display = 'block';
@@ -559,17 +584,17 @@ async function abrirChat(friend, el) {
     activeFriend = friend;
 
     document.getElementById('chatHeader').innerHTML = `
-        <div class="user-avatar-hdr">${iniciales(friend.full_name)}</div>
+        <div class="avatar" style="background:#446447; display:flex; align-items:center; justify-content:center; color:white;">${iniciales(friend.full_name)}</div>
         <div>
             <strong>${friend.full_name}</strong>
             <p class="online">Online</p>
         </div>
-        <div class="chat-actions">
-            <button class="btn btn-outline-success btn-sm" onclick="startVideoCall()">📹 Videollamada</button>
+        <div class="chat-actions" style="margin-left:auto;">
+            <button class="btn btn-outline-success btn-sm" onclick="startVideoCall()" style="background:#446447; color:white; border:none; padding:5px 15px; border-radius:5px;">📹 Videollamada</button>
         </div>`;
 
-    document.querySelectorAll('.user-item').forEach(i => i.classList.remove('activo'));
-    el.classList.add('activo');
+    document.querySelectorAll('.user').forEach(i => i.classList.remove('activo'));
+    if (el) el.classList.add('activo');
 
     await cargarMensajes();
     suscribirRealtime();
@@ -604,9 +629,9 @@ function agregarBurbuja(m) {
     const div = document.createElement('div');
     div.className = 'message ' + (esMio ? 'propio' : 'ajeno');
     div.innerHTML = `
-        ${!esMio ? `<span class="msg-autor">${m.username}</span>` : ''}
-        <p>${escapeHtml(m.message)}</p>
-        <span class="msg-hora">${formatHora(m.created_at)}</span>`;
+        ${!esMio ? `<span class="msg-autor" style="font-size:12px;">${m.username}</span><br>` : ''}
+        <span>${escapeHtml(m.message)}</span>
+        <div class="msg-hora" style="font-size:10px; margin-top:5px;">${formatHora(m.created_at)}</div>`;
     cont.appendChild(div);
     cont.scrollTop = cont.scrollHeight;
 }
