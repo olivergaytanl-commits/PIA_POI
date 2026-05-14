@@ -615,4 +615,71 @@ async function enviarMensaje() {
     if (!activeFriend) return;
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
-    if (!text)
+    if (!text) return;
+
+    input.value = '';
+    input.focus();
+
+    await authFetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to_user_id: activeFriend.id, message: text })
+    });
+}
+
+function enterEnviar(e) {
+    if (e.key === 'Enter') enviarMensaje();
+}
+
+function buildChatId(id1, id2) {
+    return [id1, id2].sort().join('_');
+}
+
+function suscribirRealtime() {
+    if (realtimeSub) sbClient.removeChannel(realtimeSub);
+
+    const chatId = buildChatId(currentUser.id, activeFriend.id);
+
+    realtimeSub = sbClient
+        .channel('messages-' + chatId)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `chat_id=eq.${chatId}`
+        }, payload => {
+            agregarBurbuja(payload.new);
+        })
+        .subscribe();
+}
+
+function authFetch(url, opts = {}) {
+    return fetch(url, {
+        ...opts,
+        headers: { ...(opts.headers || {}), 'Authorization': `Bearer ${token}` }
+    });
+}
+
+function logout() {
+    if (videoCallManager && videoCallManager.isInCall) videoCallManager.endCall();
+    if (socket) socket.disconnect();
+    localStorage.clear();
+    window.location.href = 'InicioS.html';
+}
+
+function iniciales(nombre) {
+    return nombre.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatHora(ts) {
+    if (!ts) return '';
+    return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+</script>
+
+</body>
+</html>
