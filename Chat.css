@@ -156,3 +156,218 @@ cursor:pointer;
     align-self: flex-start;
     border-bottom-left-radius: 4px;
 }
+
+/* Estilos para videollamada - Añadir a tu Chat.css existente */
+
+/* Modal de video */
+.video-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.video-grid {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: #000;
+}
+
+.remote-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.local-video {
+    position: absolute;
+    bottom: 80px;
+    right: 20px;
+    width: 200px;
+    height: 150px;
+    border-radius: 10px;
+    border: 2px solid white;
+    object-fit: cover;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.local-video:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(255,255,255,0.3);
+}
+
+.video-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 15px 30px;
+    border-radius: 50px;
+    z-index: 20;
+    backdrop-filter: blur(10px);
+}
+
+.video-control-btn {
+    background: #333;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.video-control-btn:hover {
+    background: #555;
+    transform: scale(1.05);
+}
+
+.hangup-btn {
+    background: #dc3545 !important;
+}
+
+.hangup-btn:hover {
+    background: #c82333 !important;
+    transform: scale(1.05);
+}
+
+/* Notificación de llamada entrante */
+.incoming-call {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 1500;
+    animation: slideInRight 0.3s ease;
+    min-width: 280px;
+}
+
+.incoming-call-content {
+    padding: 20px;
+    color: white;
+}
+
+.incoming-call-header {
+    font-weight: bold;
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+.incoming-call-content p {
+    margin: 10px 0;
+    font-size: 16px;
+}
+
+.incoming-call-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.accept-call-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.accept-call-btn:hover {
+    background: #218838;
+    transform: scale(1.05);
+}
+
+.reject-call-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.reject-call-btn:hover {
+    background: #c82333;
+    transform: scale(1.05);
+}
+
+/* Animaciones */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Botón de videollamada en el header del chat */
+.chat-actions .btn-outline-success {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    transition: all 0.3s;
+}
+
+.chat-actions .btn-outline-success:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .local-video {
+        width: 120px;
+        height: 90px;
+        bottom: 100px;
+        right: 10px;
+    }
+    
+    .video-control-btn {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+    
+    .video-controls {
+        gap: 10px;
+        padding: 12px 20px;
+    }
+    
+    .incoming-call {
+        top: 70px;
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+    }
+}
