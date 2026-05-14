@@ -6,7 +6,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="Chat.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
-    <title>Chats</title>
+    <title>Chats - BetGol</title>
 </head>
 <body>
 
@@ -30,7 +30,7 @@
 
     <!-- LISTA DE USUARIOS -->
     <div class="chat-users" id="listaAmigos">
-        <div class="users-loading">...</div>
+        <div class="users-loading">Cargando contactos...</div>
     </div>
 
     <!-- AREA DEL CHAT -->
@@ -57,12 +57,48 @@
 
 </div>
 
-<!-- Supabase Realtime -->
+<!-- MODAL DE VIDELLAMADA -->
+<div id="videoCallModal" class="video-modal" style="display: none;">
+    <div class="video-container">
+        <div class="video-grid">
+            <video id="remoteVideo" autoplay playsinline class="remote-video"></video>
+            <video id="localVideo" autoplay muted playsinline class="local-video"></video>
+        </div>
+        <div class="video-controls">
+            <button id="toggleMicBtn" class="video-control-btn">
+                🎤 Micrófono
+            </button>
+            <button id="toggleVideoBtn" class="video-control-btn">
+                📷 Cámara
+            </button>
+            <button id="endCallBtn" class="video-control-btn hangup-btn">
+                🔴 Colgar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- NOTIFICACIÓN DE LLAMADA ENTRANTE -->
+<div id="incomingCallNotification" class="incoming-call" style="display: none;">
+    <div class="incoming-call-content">
+        <div class="incoming-call-header">
+            <span>📞 Llamada entrante</span>
+        </div>
+        <p><strong id="callerName"></strong> te está llamando...</p>
+        <div class="incoming-call-buttons">
+            <button id="acceptCallBtn" class="accept-call-btn">Aceptar</button>
+            <button id="rejectCallBtn" class="reject-call-btn">Rechazar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/socket.io/socket.io.js"></script>
 
 <script>
 // ─────────────────────────────────────────────────────────
-//  CONFIG  ← pega aquí tu anon key cuando la tengas
+//  CONFIGURACIÓN
 // ─────────────────────────────────────────────────────────
 const SUPABASE_URL  = 'https://fjoiyxvhbntpcxjrrksy.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZqb2l5eHZoYm50cGN4anJya3N5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MzI5NTAsImV4cCI6MjA5MjEwODk1MH0.wdqCJyqzMCiHpET3Y91PIerTwqK-u9D0jAkrtjY46zc';
@@ -71,12 +107,231 @@ const API           = window.location.origin;
 const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ─────────────────────────────────────────────────────────
-//  ESTADO
+//  ESTADO GLOBAL
 // ─────────────────────────────────────────────────────────
 let currentUser  = null;
 let token        = null;
 let activeFriend = null;
 let realtimeSub  = null;
+let socket       = null;
+let videoCallManager = null;
+
+// ─────────────────────────────────────────────────────────
+//  CLASE PARA VIDEOLLAMADAS
+// ─────────────────────────────────────────────────────────
+class VideoCallManager {
+    constructor(socket, currentUser) {
+        this.socket = socket;
+        this.currentUser = currentUser;
+        this.peerConnection = null;
+        this.localStream = null;
+        this.remoteStream = null;
+        this.isInCall = false;
+        this.currentCallWith = null;
+        
+        this.configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        };
+    }
+
+    async initLocalStream() {
+        try {
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+            return true;
+        } catch (error) {
+            console.error('Error accessing media devices:', error);
+            alert('No se pudo acceder a la cámara/micrófono. Por favor verifica los permisos.');
+            return false;
+        }
+    }
+
+    setupVideoElements() {
+        const localVideo = document.getElementById('localVideo');
+        if (localVideo && this.localStream) {
+            localVideo.srcObject = this.localStream;
+        }
+    }
+
+    async startCall(targetUserId, targetUserName) {
+        if (!this.localStream) {
+            const success = await this.initLocalStream();
+            if (!success) return;
+        }
+
+        this.currentCallWith = { id: targetUserId, name: targetUserName };
+        
+        this.peerConnection = new RTCPeerConnection(this.configuration);
+        
+        // Add local stream tracks
+        this.localStream.getTracks().forEach(track => {
+            this.peerConnection.addTrack(track, this.localStream);
+        });
+
+        // Handle remote stream
+        this.peerConnection.ontrack = (event) => {
+            this.remoteStream = event.streams[0];
+            const remoteVideo = document.getElementById('remoteVideo');
+            if (remoteVideo) {
+                remoteVideo.srcObject = this.remoteStream;
+            }
+        };
+
+        // Handle ICE candidates
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                this.socket.emit('call-user', {
+                    to: targetUserId,
+                    from: this.currentUser.id,
+                    signalData: event.candidate
+                });
+            }
+        };
+
+        // Handle connection state
+        this.peerConnection.onconnectionstatechange = () => {
+            if (this.peerConnection.connectionState === 'disconnected' ||
+                this.peerConnection.connectionState === 'failed' ||
+                this.peerConnection.connectionState === 'closed') {
+                this.endCall();
+            }
+        };
+
+        try {
+            // Create offer
+            const offer = await this.peerConnection.createOffer();
+            await this.peerConnection.setLocalDescription(offer);
+
+            this.socket.emit('call-user', {
+                to: targetUserId,
+                from: this.currentUser.id,
+                signalData: offer
+            });
+
+            this.isInCall = true;
+            this.showCallUI(true);
+            this.setupVideoElements();
+        } catch (error) {
+            console.error('Error starting call:', error);
+            alert('Error al iniciar la llamada');
+        }
+    }
+
+    async acceptCall(fromUserId, signal) {
+        if (!this.localStream) {
+            const success = await this.initLocalStream();
+            if (!success) return;
+        }
+
+        this.currentCallWith = { id: fromUserId, name: '' };
+        
+        this.peerConnection = new RTCPeerConnection(this.configuration);
+        
+        this.localStream.getTracks().forEach(track => {
+            this.peerConnection.addTrack(track, this.localStream);
+        });
+
+        this.peerConnection.ontrack = (event) => {
+            this.remoteStream = event.streams[0];
+            const remoteVideo = document.getElementById('remoteVideo');
+            if (remoteVideo) {
+                remoteVideo.srcObject = this.remoteStream;
+            }
+        };
+
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                this.socket.emit('accept-call', {
+                    to: fromUserId,
+                    signal: event.candidate
+                });
+            }
+        };
+
+        try {
+            await this.peerConnection.setRemoteDescription(signal);
+            const answer = await this.peerConnection.createAnswer();
+            await this.peerConnection.setLocalDescription(answer);
+
+            this.socket.emit('accept-call', {
+                to: fromUserId,
+                signal: answer
+            });
+
+            this.isInCall = true;
+            this.showCallUI(true);
+            this.setupVideoElements();
+        } catch (error) {
+            console.error('Error accepting call:', error);
+        }
+    }
+
+    async handleRemoteSignal(signal) {
+        if (!this.peerConnection) return;
+        
+        try {
+            if (signal.type === 'offer') {
+                await this.peerConnection.setRemoteDescription(signal);
+                const answer = await this.peerConnection.createAnswer();
+                await this.peerConnection.setLocalDescription(answer);
+                this.socket.emit('accept-call', {
+                    to: this.currentCallWith?.id,
+                    signal: answer
+                });
+            } else if (signal.type === 'answer') {
+                await this.peerConnection.setRemoteDescription(signal);
+            } else if (signal.candidate) {
+                await this.peerConnection.addIceCandidate(signal);
+            }
+        } catch (error) {
+            console.error('Error handling remote signal:', error);
+        }
+    }
+
+    endCall() {
+        if (this.peerConnection) {
+            this.peerConnection.close();
+            this.peerConnection = null;
+        }
+        
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => track.stop());
+            this.localStream = null;
+        }
+        
+        this.remoteStream = null;
+        this.isInCall = false;
+        this.currentCallWith = null;
+        this.showCallUI(false);
+        
+        // Clear video elements
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        if (localVideo) localVideo.srcObject = null;
+        if (remoteVideo) remoteVideo.srcObject = null;
+        
+        // Notify other user if needed
+        if (this.currentCallWith) {
+            this.socket.emit('hangup', { to: this.currentCallWith.id });
+        }
+    }
+
+    showCallUI(inCall) {
+        const callModal = document.getElementById('videoCallModal');
+        if (callModal) {
+            callModal.style.display = inCall ? 'flex' : 'none';
+        }
+        
+        // Disable/enable scroll on body
+        document.body.style.overflow = inCall ? 'hidden' : '';
+    }
+}
 
 // ─────────────────────────────────────────────────────────
 //  INIT — redirige si no hay sesión
@@ -90,8 +345,113 @@ window.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    initSocketAndVideo();
     cargarAmigos();
 });
+
+// ─────────────────────────────────────────────────────────
+//  SOCKET Y VIDEO
+// ─────────────────────────────────────────────────────────
+function initSocketAndVideo() {
+    socket = io(window.location.origin);
+    
+    socket.on('connect', () => {
+        console.log('Socket conectado');
+        socket.emit('register-user', {
+            userId: currentUser.id,
+            userName: currentUser.full_name
+        });
+    });
+    
+    videoCallManager = new VideoCallManager(socket, currentUser);
+    
+    // Escuchar llamada entrante
+    socket.on('incoming-call', async ({ from, signal }) => {
+        showIncomingCall(from, signal);
+    });
+    
+    // Escuchar aceptación de llamada
+    socket.on('call-accepted', async ({ signal }) => {
+        await videoCallManager.handleRemoteSignal(signal);
+    });
+    
+    // Escuchar fin de llamada
+    socket.on('call-ended', () => {
+        if (videoCallManager.isInCall) {
+            videoCallManager.endCall();
+            alert('La llamada ha terminado');
+        }
+    });
+    
+    // Escuchar rechazo de llamada
+    socket.on('call-rejected', () => {
+        videoCallManager.endCall();
+        alert('La llamada fue rechazada');
+    });
+    
+    // Usuario offline
+    socket.on('user-offline', ({ userId }) => {
+        alert('El usuario no está disponible en este momento');
+        videoCallManager.endCall();
+    });
+}
+
+// Mostrar notificación de llamada entrante
+let pendingCallSignal = null;
+let pendingCaller = null;
+
+function showIncomingCall(caller, signal) {
+    if (videoCallManager.isInCall) {
+        // Si ya está en una llamada, rechazar automáticamente
+        socket.emit('reject-call', { to: caller.userId });
+        return;
+    }
+    
+    pendingCaller = caller;
+    pendingCallSignal = signal;
+    
+    const notification = document.getElementById('incomingCallNotification');
+    const callerNameSpan = document.getElementById('callerName');
+    
+    callerNameSpan.textContent = caller.userName;
+    notification.style.display = 'block';
+    
+    // Aceptar llamada
+    const acceptBtn = document.getElementById('acceptCallBtn');
+    const newAcceptBtn = acceptBtn.cloneNode(true);
+    acceptBtn.parentNode.replaceChild(newAcceptBtn, acceptBtn);
+    
+    newAcceptBtn.onclick = async () => {
+        notification.style.display = 'none';
+        await videoCallManager.acceptCall(pendingCaller.userId, pendingCallSignal);
+        pendingCallSignal = null;
+        pendingCaller = null;
+    };
+    
+    // Rechazar llamada
+    const rejectBtn = document.getElementById('rejectCallBtn');
+    const newRejectBtn = rejectBtn.cloneNode(true);
+    rejectBtn.parentNode.replaceChild(newRejectBtn, rejectBtn);
+    
+    newRejectBtn.onclick = () => {
+        notification.style.display = 'none';
+        socket.emit('reject-call', { to: pendingCaller.userId });
+        pendingCallSignal = null;
+        pendingCaller = null;
+    };
+    
+    // Auto-cerrar después de 30 segundos
+    setTimeout(() => {
+        if (notification.style.display === 'block') {
+            notification.style.display = 'none';
+            if (pendingCallSignal) {
+                socket.emit('reject-call', { to: pendingCaller?.userId });
+                pendingCallSignal = null;
+                pendingCaller = null;
+            }
+        }
+    }, 30000);
+}
 
 // ─────────────────────────────────────────────────────────
 //  AMIGOS
@@ -185,8 +545,7 @@ async function abrirChat(friend, el) {
             <p class="online">Online</p>
         </div>
         <div class="chat-actions">
-            <button class="btn btn-outline-success btn-sm">📞</button>
-            <button class="btn btn-outline-primary btn-sm">📹</button>
+            <button class="btn btn-outline-success btn-sm" onclick="startVideoCall()">📹 Videollamada</button>
         </div>`;
 
     document.querySelectorAll('.user-item').forEach(i => i.classList.remove('activo'));
@@ -194,6 +553,21 @@ async function abrirChat(friend, el) {
 
     await cargarMensajes();
     suscribirRealtime();
+}
+
+// Función para iniciar videollamada
+async function startVideoCall() {
+    if (!activeFriend) {
+        alert('Selecciona un contacto primero');
+        return;
+    }
+    
+    if (!videoCallManager) {
+        alert('Sistema de video no disponible');
+        return;
+    }
+    
+    await videoCallManager.startCall(activeFriend.id, activeFriend.full_name);
 }
 
 async function cargarMensajes() {
@@ -264,6 +638,51 @@ function suscribirRealtime() {
 }
 
 // ─────────────────────────────────────────────────────────
+//  CONTROLES DE VIDEO
+// ─────────────────────────────────────────────────────────
+// Esperar a que los elementos del DOM estén listos
+document.addEventListener('DOMContentLoaded', () => {
+    // Configurar controles de video después de que existan
+    setTimeout(() => {
+        const toggleMicBtn = document.getElementById('toggleMicBtn');
+        const toggleVideoBtn = document.getElementById('toggleVideoBtn');
+        const endCallBtn = document.getElementById('endCallBtn');
+        
+        if (toggleMicBtn) {
+            toggleMicBtn.onclick = () => {
+                if (videoCallManager && videoCallManager.localStream) {
+                    const audioTrack = videoCallManager.localStream.getAudioTracks()[0];
+                    if (audioTrack) {
+                        audioTrack.enabled = !audioTrack.enabled;
+                        toggleMicBtn.textContent = audioTrack.enabled ? '🎤 Micrófono' : '🔇 Micrófono OFF';
+                    }
+                }
+            };
+        }
+        
+        if (toggleVideoBtn) {
+            toggleVideoBtn.onclick = () => {
+                if (videoCallManager && videoCallManager.localStream) {
+                    const videoTrack = videoCallManager.localStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        videoTrack.enabled = !videoTrack.enabled;
+                        toggleVideoBtn.textContent = videoTrack.enabled ? '📷 Cámara' : '📷 Cámara OFF';
+                    }
+                }
+            };
+        }
+        
+        if (endCallBtn) {
+            endCallBtn.onclick = () => {
+                if (videoCallManager) {
+                    videoCallManager.endCall();
+                }
+            };
+        }
+    }, 100);
+});
+
+// ─────────────────────────────────────────────────────────
 //  HELPERS
 // ─────────────────────────────────────────────────────────
 function authFetch(url, opts = {}) {
@@ -274,6 +693,12 @@ function authFetch(url, opts = {}) {
 }
 
 function logout() {
+    if (videoCallManager && videoCallManager.isInCall) {
+        videoCallManager.endCall();
+    }
+    if (socket) {
+        socket.disconnect();
+    }
     localStorage.clear();
     window.location.href = 'InicioS.html';
 }
