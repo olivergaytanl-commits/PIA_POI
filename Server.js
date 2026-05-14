@@ -29,42 +29,45 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
 
-// ── Almacenamiento de usuarios conectados para video ─────────────────────────
-const connectedUsers = new Map(); // socketId -> { userId, userName }
+// ── Almacenamiento de usuarios conectados ─────────────────────────────────────
+const connectedUsers = new Map();
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  SOCKET.IO PARA VIDEOLLAMADAS
+//  SOCKET.IO PARA VIDEOLLAMADAS (CORREGIDO)
 // ══════════════════════════════════════════════════════════════════════════════
 io.on('connection', (socket) => {
   console.log('🔌 Nuevo cliente conectado:', socket.id);
 
   // Registrar usuario
   socket.on('register-user', ({ userId, userName }) => {
-    connectedUsers.set(socket.id, { userId, userName });
+    connectedUsers.set(socket.id, { userId, userName, socketId: socket.id });
     console.log(`👤 Usuario registrado: ${userName} (${userId})`);
+    console.log('Usuarios conectados:', Array.from(connectedUsers.values()));
   });
 
   // Iniciar videollamada
   socket.on('call-user', ({ to, from, signalData }) => {
+    console.log(`📞 Llamada de ${from} a ${to}`);
     const targetSocket = getSocketIdByUserId(to);
     if (targetSocket) {
       io.to(targetSocket).emit('incoming-call', {
-        from: connectedUsers.get(socket.id),
+        from: { userId: from, userName: getUserNameById(from) },
         signal: signalData
       });
-      console.log(`📞 Llamada de ${from} a ${to}`);
+      console.log(`✅ Señal de llamada enviada a ${to}`);
     } else {
       socket.emit('user-offline', { userId: to });
       console.log(`❌ Usuario ${to} no está conectado`);
     }
   });
 
-  // Aceptar llamada
+  // Aceptar llamada (envía answer)
   socket.on('accept-call', ({ to, signal }) => {
+    console.log(`✅ Llamada aceptada, enviando answer a ${to}`);
     const targetSocket = getSocketIdByUserId(to);
     if (targetSocket) {
       io.to(targetSocket).emit('call-accepted', { signal });
-      console.log(`✅ Llamada aceptada por ${to}`);
+      console.log(`📡 Answer enviado a ${to}`);
     }
   });
 
@@ -96,7 +99,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Helper para obtener socketId por userId
 function getSocketIdByUserId(userId) {
   for (const [socketId, user] of connectedUsers.entries()) {
     if (user.userId === userId) {
@@ -104,6 +106,15 @@ function getSocketIdByUserId(userId) {
     }
   }
   return null;
+}
+
+function getUserNameById(userId) {
+  for (const [, user] of connectedUsers.entries()) {
+    if (user.userId === userId) {
+      return user.userName;
+    }
+  }
+  return 'Usuario';
 }
 
 // ── Helper: verificar JWT ─────────────────────────────────────────────────────
@@ -122,7 +133,6 @@ function authMiddleware(req, res, next) {
 //  AUTH
 // ══════════════════════════════════════════════════════════════════════════════
 
-// POST /api/register
 app.post('/api/register', async (req, res) => {
   const { full_name, email, password, img_profile } = req.body;
 
@@ -156,7 +166,6 @@ app.post('/api/register', async (req, res) => {
   res.status(201).json({ user: data, token });
 });
 
-// POST /api/login
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
@@ -185,7 +194,6 @@ app.post('/api/login', async (req, res) => {
 //  USUARIOS
 // ══════════════════════════════════════════════════════════════════════════════
 
-// GET /api/users/search?q=nombre
 app.get('/api/users/search', authMiddleware, async (req, res) => {
   const q = req.query.q || '';
   const { data, error } = await supabase
@@ -203,7 +211,6 @@ app.get('/api/users/search', authMiddleware, async (req, res) => {
 //  AMIGOS
 // ══════════════════════════════════════════════════════════════════════════════
 
-// GET /api/friends
 app.get('/api/friends', authMiddleware, async (req, res) => {
   const uid = req.user.id;
 
@@ -226,7 +233,6 @@ app.get('/api/friends', authMiddleware, async (req, res) => {
   res.json(users);
 });
 
-// POST /api/friends
 app.post('/api/friends', authMiddleware, async (req, res) => {
   const uid = req.user.id;
   const { friend_id } = req.body;
@@ -258,7 +264,6 @@ function buildChatId(id1, id2) {
   return [id1, id2].sort().join('_');
 }
 
-// GET /api/messages/:friendId
 app.get('/api/messages/:friendId', authMiddleware, async (req, res) => {
   const chat_id = buildChatId(req.user.id, req.params.friendId);
 
@@ -272,7 +277,6 @@ app.get('/api/messages/:friendId', authMiddleware, async (req, res) => {
   res.json(data);
 });
 
-// POST /api/messages
 app.post('/api/messages', authMiddleware, async (req, res) => {
   const { to_user_id, message } = req.body;
   if (!to_user_id || !message)
@@ -294,7 +298,6 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
 //  PUBLICACIONES
 // ══════════════════════════════════════════════════════════════════════════════
 
-// POST /api/publicaciones
 app.post('/api/publicaciones', authMiddleware, async (req, res) => {
   const { titulo, datos, categoria, media_url } = req.body;
 
@@ -317,7 +320,6 @@ app.post('/api/publicaciones', authMiddleware, async (req, res) => {
   res.status(201).json(data);
 });
 
-// GET /api/publicaciones
 app.get('/api/publicaciones', authMiddleware, async (req, res) => {
   const { data, error } = await supabase
     .from('publicaciones')
