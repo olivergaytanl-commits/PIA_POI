@@ -29,110 +29,103 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
 
-// ── Almacenamiento de usuarios conectados ─────────────────────────────────────
-const connectedUsers = new Map();
+// ── Almacenamiento de usuarios conectados para video ─────────────────────────
+const connectedUsers = new Map(); // userId -> socketId
+const userDetails = new Map(); // socketId -> { userId, userName }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  SOCKET.IO PARA VIDEOLLAMADAS (CORREGIDO)
+//  SOCKET.IO PARA VIDEOLLAMADAS (VERSIÓN CORREGIDA)
 // ══════════════════════════════════════════════════════════════════════════════
 io.on('connection', (socket) => {
   console.log('🔌 Nuevo cliente conectado:', socket.id);
 
   // Registrar usuario
   socket.on('register-user', ({ userId, userName }) => {
-    connectedUsers.set(socket.id, { userId, userName, socketId: socket.id });
+    connectedUsers.set(userId, socket.id);
+    userDetails.set(socket.id, { userId, userName });
     console.log(`👤 Usuario registrado: ${userName} (${userId})`);
-    console.log('Usuarios conectados:', Array.from(connectedUsers.values()));
+    console.log('Usuarios conectados:', Array.from(connectedUsers.keys()));
   });
 
-  // Iniciar videollamada (enviar OFFER)
+  // Iniciar videollamada (el que llama)
   socket.on('call-user', ({ to, from, signalData }) => {
-    console.log(`📞 Llamada de ${from} a ${to}`);
-    const targetSocket = getSocketIdByUserId(to);
-    if (targetSocket) {
-      io.to(targetSocket).emit('incoming-call', {
-        from: { userId: from, userName: getUserNameById(from) },
+    console.log(`📞 ${from} está llamando a ${to}`);
+    const targetSocketId = connectedUsers.get(to);
+    
+    if (targetSocketId) {
+      // Enviar la señal al usuario que recibe la llamada
+      io.to(targetSocketId).emit('incoming-call', {
+        from: { userId: from, userName: userDetails.get(socket.id)?.userName || 'Usuario' },
         signal: signalData
       });
-      console.log(`✅ OFFER enviado a ${to}`);
+      console.log(`✅ Señal de llamada enviada a ${to}`);
     } else {
       socket.emit('user-offline', { userId: to });
       console.log(`❌ Usuario ${to} no está conectado`);
     }
   });
 
-  // Aceptar llamada (envía ANSWER)
+  // Aceptar llamada (el que responde)
   socket.on('accept-call', ({ to, signal }) => {
-    console.log(`✅ Llamada aceptada, enviando ANSWER a ${to}`);
-    const targetSocket = getSocketIdByUserId(to);
-    if (targetSocket) {
-      io.to(targetSocket).emit('call-accepted', { signal });
-      console.log(`📡 ANSWER enviado a ${to}`);
+    console.log(`✅ ${socket.id} aceptó la llamada de ${to}`);
+    const targetSocketId = connectedUsers.get(to);
+    
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('call-accepted', { signal });
+      console.log(`📡 Answer enviado a ${to}`);
     }
   });
 
-  // Enviar ICE candidate del que llama
+  // ICE Candidate del que llama
   socket.on('ice-candidate-caller', ({ to, candidate }) => {
-    console.log(`🔄 ICE candidate del que llama hacia ${to}`);
-    const targetSocket = getSocketIdByUserId(to);
-    if (targetSocket) {
-      io.to(targetSocket).emit('ice-candidate-from-caller', { candidate });
+    const targetSocketId = connectedUsers.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('ice-candidate-from-caller', { candidate });
+      console.log(`🔄 ICE candidate enviado del caller al callee`);
     }
   });
 
-  // Enviar ICE candidate del que acepta
+  // ICE Candidate del que recibe
   socket.on('ice-candidate-callee', ({ to, candidate }) => {
-    console.log(`🔄 ICE candidate del que acepta hacia ${to}`);
-    const targetSocket = getSocketIdByUserId(to);
-    if (targetSocket) {
-      io.to(targetSocket).emit('ice-candidate-from-callee', { candidate });
+    const targetSocketId = connectedUsers.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('ice-candidate-from-callee', { candidate });
+      console.log(`🔄 ICE candidate enviado del callee al caller`);
     }
   });
 
   // Rechazar llamada
   socket.on('reject-call', ({ to }) => {
-    const targetSocket = getSocketIdByUserId(to);
-    if (targetSocket) {
-      io.to(targetSocket).emit('call-rejected');
-      console.log(`❌ Llamada rechazada por ${to}`);
+    const targetSocketId = connectedUsers.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('call-rejected');
+      console.log(`❌ Llamada rechazada`);
     }
   });
 
   // Colgar llamada
   socket.on('hangup', ({ to }) => {
-    const targetSocket = getSocketIdByUserId(to);
-    if (targetSocket) {
-      io.to(targetSocket).emit('call-ended');
-      console.log(`🔴 Llamada finalizada con ${to}`);
+    const targetSocketId = connectedUsers.get(to);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('call-ended');
+      console.log(`🔴 Llamada finalizada`);
     }
   });
 
   // Desconexión
   socket.on('disconnect', () => {
-    const user = connectedUsers.get(socket.id);
+    const user = userDetails.get(socket.id);
     if (user) {
       console.log(`👋 Usuario desconectado: ${user.userName}`);
-      connectedUsers.delete(socket.id);
+      connectedUsers.delete(user.userId);
+      userDetails.delete(socket.id);
     }
   });
 });
 
+// Helper para obtener socketId por userId
 function getSocketIdByUserId(userId) {
-  for (const [socketId, user] of connectedUsers.entries()) {
-    if (user.userId === userId) {
-      return socketId;
-    }
-  }
-  return null;
-}
-
-function getUserNameById(userId) {
-  for (const [, user] of connectedUsers.entries()) {
-    if (user.userId === userId) {
-      return user.userName;
-    }
-  }
-  return 'Usuario';
+  return connectedUsers.get(userId);
 }
 
 // ── Helper: verificar JWT ─────────────────────────────────────────────────────
