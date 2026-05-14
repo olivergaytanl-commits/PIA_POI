@@ -194,11 +194,10 @@ class VideoCallManager {
         // Manejar ICE candidates
         this.peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log('🔄 Enviando ICE candidate');
-                this.socket.emit('call-user', {
+                console.log('🔄 Enviando ICE candidate (caller)');
+                this.socket.emit('ice-candidate-caller', {
                     to: targetUserId,
-                    from: this.currentUser.id,
-                    signalData: event.candidate
+                    candidate: event.candidate
                 });
             }
         };
@@ -265,10 +264,10 @@ class VideoCallManager {
         // Manejar ICE candidates
         this.peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log('🔄 Enviando ICE candidate');
-                this.socket.emit('accept-call', {
+                console.log('🔄 Enviando ICE candidate (callee)');
+                this.socket.emit('ice-candidate-callee', {
                     to: fromUserId,
-                    signal: event.candidate
+                    candidate: event.candidate
                 });
             }
         };
@@ -405,6 +404,24 @@ function initSocketAndVideo() {
     socket.on('call-accepted', ({ signal }) => {
         console.log('✅ Llamada aceptada');
         videoCallManager.handleRemoteSignal(signal);
+    });
+    
+    socket.on('ice-candidate-from-callee', ({ candidate }) => {
+        console.log('📥 ICE candidate del que acepta');
+        if (videoCallManager && videoCallManager.peerConnection) {
+            videoCallManager.peerConnection.addIceCandidate(candidate).catch(err => {
+                console.error('❌ Error agregando ICE candidate:', err);
+            });
+        }
+    });
+    
+    socket.on('ice-candidate-from-caller', ({ candidate }) => {
+        console.log('📥 ICE candidate del que llama');
+        if (videoCallManager && videoCallManager.peerConnection) {
+            videoCallManager.peerConnection.addIceCandidate(candidate).catch(err => {
+                console.error('❌ Error agregando ICE candidate:', err);
+            });
+        }
     });
     
     socket.on('call-ended', () => {

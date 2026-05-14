@@ -45,7 +45,7 @@ io.on('connection', (socket) => {
     console.log('Usuarios conectados:', Array.from(connectedUsers.values()));
   });
 
-  // Iniciar videollamada
+  // Iniciar videollamada (enviar OFFER)
   socket.on('call-user', ({ to, from, signalData }) => {
     console.log(`📞 Llamada de ${from} a ${to}`);
     const targetSocket = getSocketIdByUserId(to);
@@ -54,20 +54,38 @@ io.on('connection', (socket) => {
         from: { userId: from, userName: getUserNameById(from) },
         signal: signalData
       });
-      console.log(`✅ Señal de llamada enviada a ${to}`);
+      console.log(`✅ OFFER enviado a ${to}`);
     } else {
       socket.emit('user-offline', { userId: to });
       console.log(`❌ Usuario ${to} no está conectado`);
     }
   });
 
-  // Aceptar llamada (envía answer)
+  // Aceptar llamada (envía ANSWER)
   socket.on('accept-call', ({ to, signal }) => {
-    console.log(`✅ Llamada aceptada, enviando answer a ${to}`);
+    console.log(`✅ Llamada aceptada, enviando ANSWER a ${to}`);
     const targetSocket = getSocketIdByUserId(to);
     if (targetSocket) {
       io.to(targetSocket).emit('call-accepted', { signal });
-      console.log(`📡 Answer enviado a ${to}`);
+      console.log(`📡 ANSWER enviado a ${to}`);
+    }
+  });
+
+  // Enviar ICE candidate del que llama
+  socket.on('ice-candidate-caller', ({ to, candidate }) => {
+    console.log(`🔄 ICE candidate del que llama hacia ${to}`);
+    const targetSocket = getSocketIdByUserId(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit('ice-candidate-from-caller', { candidate });
+    }
+  });
+
+  // Enviar ICE candidate del que acepta
+  socket.on('ice-candidate-callee', ({ to, candidate }) => {
+    console.log(`🔄 ICE candidate del que acepta hacia ${to}`);
+    const targetSocket = getSocketIdByUserId(to);
+    if (targetSocket) {
+      io.to(targetSocket).emit('ice-candidate-from-callee', { candidate });
     }
   });
 
