@@ -396,21 +396,23 @@ app.post('/api/tareas', authMiddleware, async (req, res) => {
     .select()
     .single();
 
-  if (err1)
+  if (err1){
+    console.log('ERR1:', err1);
     return res.status(500).json({
       error: err1.message
     });
-
+}
   // OBTENER TODOS LOS USUARIOS
   const { data: users, error: err2 } = await supabase
     .from('users')
     .select('id');
 
-  if (err2)
+  if (err2){
+    console.log('ERR2:', err2);
     return res.status(500).json({
       error: err2.message
     });
-
+  }
   // CREAR REGISTRO INDIVIDUAL
   const registros = users.map(u => ({
 
@@ -424,11 +426,12 @@ app.post('/api/tareas', authMiddleware, async (req, res) => {
     .from('tareas_usuarios')
     .insert(registros);
 
-  if (err3)
+  if (err3){
+    console.log('ERR3:', err3);
     return res.status(500).json({
       error: err3.message
     });
-
+}
   res.status(201).json({
     success: true
   });
