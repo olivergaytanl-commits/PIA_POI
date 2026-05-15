@@ -347,30 +347,35 @@ app.get('/api/publicaciones', authMiddleware, async (req, res) => {
 
 // OBTENER TAREAS DEL USUARIO
 app.get('/api/tareas', authMiddleware, async (req, res) => {
-
-  const uid = req.user.id;
-
-  const { data, error } = await supabase
-    .from('tareas_usuarios')
-    .select(`
-      id,
-      estado,
-      tareas (
+  try {
+    const { data, error } = await supabase
+      .from('tareas_usuarios')
+      .select(`
         id,
-        titulo,
-        descripcion,
-        fecha_limite
-      )
-    `)
-    .eq('usuario_id', uid);
-
-  if (error)
-    return res.status(500).json({
-      error: error.message
+        estado,
+        tarea_id,
+        tareas (
+          id,
+          titulo,
+          descripcion,
+          fecha_limite
+        )
+      `)
+      .eq('usuario_id', req.user.id);
+    if (error) {
+      console.log(error);
+      return res.status(500).json({
+        error: error.message
+      });
+    }
+    res.json(data);
+  }
+  catch(err) {
+    console.log(err);
+    res.status(500).json({
+      error: 'Error al obtener tareas'
     });
-
-  res.json(data);
-
+  }
 });
 
 // CREAR TAREA GLOBAL
