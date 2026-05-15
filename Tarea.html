@@ -276,6 +276,7 @@ async function cargarTareas() {
     const res = await authFetch('/api/tareas');
 
     const tareas = await res.json();
+    console.log(tareas);
 
     const noIniciada = document.getElementById('noIniciada');
     const enProgreso = document.getElementById('enProgreso');
