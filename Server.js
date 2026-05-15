@@ -354,7 +354,7 @@ app.get('/api/tareas', authMiddleware, async (req, res) => {
         id,
         estado,
         tarea_id,
-        tareas (
+        tareas!fk_tarea (
           id,
           titulo,
           descripcion,
