@@ -442,29 +442,33 @@ document
 
     });
 
-    if (res.ok) {
+    const result = await res.json();
 
-        alert('✅ Tarea creada');
+console.log(result);
 
-        document
-        .getElementById('formTarea')
-        .reset();
+if (res.ok) {
 
-        const modal = bootstrap.Modal.getInstance(
-            document.getElementById('modalTarea')
-        );
+    alert('✅ Tarea creada');
 
-        modal.hide();
+    document
+    .getElementById('formTarea')
+    .reset();
 
-        cargarTareas();
+    const modal = bootstrap.Modal.getInstance(
+        document.getElementById('modalTarea')
+    );
 
-    }
+    modal.hide();
 
-    else {
+    cargarTareas();
 
-        alert('Error al crear tarea');
+}
 
-    }
+else {
+
+    alert(result.error || 'Error al crear tarea');
+
+}
 
 });
 
