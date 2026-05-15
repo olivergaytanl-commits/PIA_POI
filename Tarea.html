@@ -273,10 +273,16 @@ function authFetch(url, opts = {}) {
 // ─────────────────────────────────────
 async function cargarTareas() {
 
-    const res = await authFetch('/api/tareas');
+    const res = await authFetch('/api/tareas', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+});
 
-    const tareas = await res.json();
-    console.log(tareas);
+const result = await res.json();
+console.log(result);
 
     const noIniciada = document.getElementById('noIniciada');
     const enProgreso = document.getElementById('enProgreso');
