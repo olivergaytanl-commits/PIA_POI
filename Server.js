@@ -342,6 +342,122 @@ app.get('/api/publicaciones', authMiddleware, async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+//  TAREAS INDIVIDUALES
+// ══════════════════════════════════════════════════════════════════════════════
+
+// OBTENER TAREAS DEL USUARIO
+app.get('/api/tareas', authMiddleware, async (req, res) => {
+
+  const uid = req.user.id;
+
+  const { data, error } = await supabase
+    .from('tareas_usuarios')
+    .select(`
+      id,
+      estado,
+      tareas (
+        id,
+        titulo,
+        descripcion,
+        fecha_limite
+      )
+    `)
+    .eq('usuario_id', uid);
+
+  if (error)
+    return res.status(500).json({
+      error: error.message
+    });
+
+  res.json(data);
+
+});
+
+// CREAR TAREA GLOBAL
+app.post('/api/tareas', authMiddleware, async (req, res) => {
+
+  const {
+    titulo,
+    descripcion,
+    fecha_limite
+  } = req.body;
+
+  // CREAR TAREA
+  const { data: tarea, error: err1 } = await supabase
+    .from('tareas')
+    .insert([{
+
+      titulo,
+      descripcion,
+      fecha_limite,
+      created_by: req.user.id
+
+    }])
+    .select()
+    .single();
+
+  if (err1)
+    return res.status(500).json({
+      error: err1.message
+    });
+
+  // OBTENER TODOS LOS USUARIOS
+  const { data: users, error: err2 } = await supabase
+    .from('users')
+    .select('id');
+
+  if (err2)
+    return res.status(500).json({
+      error: err2.message
+    });
+
+  // CREAR REGISTRO INDIVIDUAL
+  const registros = users.map(u => ({
+
+    tarea_id: tarea.id,
+    usuario_id: u.id,
+    estado: 'no iniciada'
+
+  }));
+
+  const { error: err3 } = await supabase
+    .from('tareas_usuarios')
+    .insert(registros);
+
+  if (err3)
+    return res.status(500).json({
+      error: err3.message
+    });
+
+  res.status(201).json({
+    success: true
+  });
+
+});
+
+// CAMBIAR ESTADO INDIVIDUAL
+app.put('/api/tareas/:id', authMiddleware, async (req, res) => {
+
+  const { estado } = req.body;
+
+  const { error } = await supabase
+    .from('tareas_usuarios')
+    .update({ estado })
+    .eq('id', req.params.id)
+    .eq('usuario_id', req.user.id);
+
+  if (error)
+    return res.status(500).json({
+      error: error.message
+    });
+
+  res.json({
+    success: true
+  });
+
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 //  START
 // ══════════════════════════════════════════════════════════════════════════════
 server.listen(PORT, () => {

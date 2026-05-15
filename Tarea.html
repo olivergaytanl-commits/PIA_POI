@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
+
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -9,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
 
 <title>Tareas</title>
+
 </head>
 
 <body>
@@ -16,27 +19,39 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <nav class="navbar">
-<a href="Inicio.html" class="sesion nav-left">BetGol ⚽</a>
-<a href="Registro.html" class="sesion nav-right">Info</a>
+
+<a href="Inicio.html" class="sesion nav-left">
+BetGol ⚽
+</a>
+
+<button class="sesion nav-right btn btn-outline-danger" onclick="logout()">
+Salir 🚪
+</button>
+
 </nav>
 
 <hr>
 
 <div class="layout">
 
-<!-- BARRA LATERAL -->
+<!-- SIDEBAR -->
 <aside class="sidebar">
+
 <h2>Servicios en línea:</h2>
 
 <ul>
+
 <li><a href="Publi.html">Crear publicación</a></li>
 <li><a href="Chat.html">Chats</a></li>
 <li><a href="Tarea.html">Tareas</a></li>
 <li><a href="Perfil.html">Perfil</a></li>
 <li><a href="Ayuda.html">Ayuda</a></li>
+
 <hr>
+
 <li><a href="InicioS.html">Iniciar sesión</a></li>
-<li><a>Cerrar sesión</a></li>
+<li><a onclick="logout()">Cerrar sesión</a></li>
+
 </ul>
 
 </aside>
@@ -47,47 +62,92 @@
 <h1>Tareas del Grupo</h1>
 
 <div class="boton-tarea">
-<button class="btn btn-outline-success mb-3" data-bs-toggle="modal" data-bs-target="#modalTarea">
+
+<button
+class="btn btn-outline-success mb-3"
+data-bs-toggle="modal"
+data-bs-target="#modalTarea">
+
 Nueva tarea
+
 </button>
+
 </div>
 
-<!-- MODAL NUEVA TAREA -->
+<!-- MODAL -->
 <div class="modal fade" id="modalTarea" tabindex="-1">
+
 <div class="modal-dialog">
+
 <div class="modal-content">
 
 <div class="modal-header">
-<h5 class="modal-title">Crear nueva tarea</h5>
-<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+<h5 class="modal-title">
+Crear nueva tarea
+</h5>
+
+<button
+type="button"
+class="btn-close"
+data-bs-dismiss="modal">
+</button>
+
 </div>
 
 <div class="modal-body">
 
-<form>
+<form id="formTarea">
 
 <div class="mb-3">
-<label class="form-label">Título</label>
-<input type="text" class="form-control" placeholder="Título de la tarea">
+
+<label class="form-label">
+Título
+</label>
+
+<input
+type="text"
+id="titulo"
+class="form-control"
+required>
+
 </div>
 
 <div class="mb-3">
-<label class="form-label">Descripción</label>
-<textarea class="form-control" rows="3" placeholder="Describe la tarea"></textarea>
+
+<label class="form-label">
+Descripción
+</label>
+
+<textarea
+id="descripcion"
+class="form-control"
+rows="3"
+required>
+</textarea>
+
 </div>
 
 <div class="mb-3">
-<label class="form-label">Fecha límite</label>
-<input type="date" class="form-control">
+
+<label class="form-label">
+Fecha límite
+</label>
+
+<input
+type="date"
+id="fecha"
+class="form-control"
+required>
+
 </div>
 
-<div class="mb-3">
-<label class="form-label">Asignar a usuario</label>
-<input type="text" class="form-control" placeholder="Nombre de usuario">
-</div>
+<button
+type="submit"
+class="btn btn-success w-100">
 
-<button type="submit" class="btn btn-success w-100">
 Crear tarea
+
 </button>
 
 </form>
@@ -95,42 +155,58 @@ Crear tarea
 </div>
 
 </div>
-</div>
+
 </div>
 
+</div>
+
+<!-- COLUMNAS -->
 <div class="contenedor-tareas">
 
 <!-- NO INICIADA -->
 <div class="columna-tarea">
 
-<h4>🔴 No Iniciada (0)</h4>
+<h4>
+🔴 No Iniciada
+(<span id="countNo">0</span>)
+</h4>
+
+<div id="noIniciada">
+
 <p>No hay tareas aquí</p>
+
+</div>
 
 </div>
 
 <!-- EN PROGRESO -->
 <div class="columna-tarea">
 
-<h4>🟡 En Progreso (0)</h4>
+<h4>
+🟡 En Progreso
+(<span id="countProgreso">0</span>)
+</h4>
+
+<div id="enProgreso">
+
 <p>No hay tareas aquí</p>
 
 </div>
 
-<!-- TERMINADA -->
+</div>
+
+<!-- COMPLETADA -->
 <div class="columna-tarea">
 
-<h4>🟢 Terminada (2)</h4>
+<h4>
+🟢 Completada
+(<span id="countCompletada">0</span>)
+</h4>
 
-<div class="tarjeta-tarea">
-<strong>Tarea a varios usuarios</strong>
-<p>si</p>
-<small>✓ Terminada</small>
-</div>
+<div id="completada">
 
-<div class="tarjeta-tarea">
-<strong>Checar video nuevo</strong>
-<p>si</p>
-<small>✓ Terminada</small>
+<p>No hay tareas aquí</p>
+
 </div>
 
 </div>
@@ -140,6 +216,289 @@ Crear tarea
 </div>
 
 </div>
+
+<script>
+
+// ─────────────────────────────────────
+// ESTADO
+// ─────────────────────────────────────
+let token = null;
+let currentUser = null;
+
+// ─────────────────────────────────────
+// INIT
+// ─────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+
+    token = localStorage.getItem('token');
+
+    currentUser = JSON.parse(
+        localStorage.getItem('user') || 'null'
+    );
+
+    if (!token || !currentUser) {
+
+        window.location.href = 'InicioS.html';
+        return;
+
+    }
+
+    cargarTareas();
+
+});
+
+// ─────────────────────────────────────
+// FETCH JWT
+// ─────────────────────────────────────
+function authFetch(url, opts = {}) {
+
+    return fetch(url, {
+
+        ...opts,
+
+        headers: {
+
+            ...(opts.headers || {}),
+
+            'Authorization': `Bearer ${token}`
+
+        }
+
+    });
+
+}
+
+// ─────────────────────────────────────
+// CARGAR TAREAS
+// ─────────────────────────────────────
+async function cargarTareas() {
+
+    const res = await authFetch('/api/tareas');
+
+    const tareas = await res.json();
+
+    const noIniciada = document.getElementById('noIniciada');
+    const enProgreso = document.getElementById('enProgreso');
+    const completada = document.getElementById('completada');
+
+    noIniciada.innerHTML = '';
+    enProgreso.innerHTML = '';
+    completada.innerHTML = '';
+
+    let countNo = 0;
+    let countProgreso = 0;
+    let countCompletada = 0;
+
+    tareas.forEach(tarea => {
+
+        const tareaGlobal = tarea.tareas;
+
+        const div = document.createElement('div');
+
+        div.className = 'tarjeta-tarea';
+
+        let botones = '';
+
+        // NO INICIADA
+        if (tarea.estado === 'no iniciada') {
+
+            botones = `
+                <button
+                class="btn btn-warning btn-sm mt-2"
+                onclick="cambiarEstado(${tarea.id}, 'en progreso')">
+
+                Iniciar
+
+                </button>
+            `;
+
+            countNo++;
+
+        }
+
+        // EN PROGRESO
+        else if (tarea.estado === 'en progreso') {
+
+            botones = `
+                <button
+                class="btn btn-success btn-sm mt-2"
+                onclick="cambiarEstado(${tarea.id}, 'completada')">
+
+                Completar
+
+                </button>
+            `;
+
+            countProgreso++;
+
+        }
+
+        // COMPLETADA
+        else {
+
+            botones = `
+                <small>✓ Terminada</small>
+            `;
+
+            countCompletada++;
+
+        }
+
+        div.innerHTML = `
+
+            <strong>${tareaGlobal.titulo}</strong>
+
+            <p>${tareaGlobal.descripcion}</p>
+
+            <small>
+
+                Fecha límite:
+                ${new Date(tareaGlobal.fecha_limite).toLocaleDateString()}
+
+            </small>
+
+            <br>
+
+            ${botones}
+
+        `;
+
+        if (tarea.estado === 'no iniciada') {
+
+            noIniciada.appendChild(div);
+
+        }
+
+        else if (tarea.estado === 'en progreso') {
+
+            enProgreso.appendChild(div);
+
+        }
+
+        else {
+
+            completada.appendChild(div);
+
+        }
+
+    });
+
+    if (countNo === 0) {
+        noIniciada.innerHTML = '<p>No hay tareas aquí</p>';
+    }
+
+    if (countProgreso === 0) {
+        enProgreso.innerHTML = '<p>No hay tareas aquí</p>';
+    }
+
+    if (countCompletada === 0) {
+        completada.innerHTML = '<p>No hay tareas aquí</p>';
+    }
+
+    document.getElementById('countNo').innerText = countNo;
+    document.getElementById('countProgreso').innerText = countProgreso;
+    document.getElementById('countCompletada').innerText = countCompletada;
+
+}
+
+// ─────────────────────────────────────
+// CREAR TAREA
+// ─────────────────────────────────────
+document
+.getElementById('formTarea')
+.addEventListener('submit', async e => {
+
+    e.preventDefault();
+
+    const data = {
+
+        titulo:
+        document.getElementById('titulo').value,
+
+        descripcion:
+        document.getElementById('descripcion').value,
+
+        fecha_limite:
+        document.getElementById('fecha').value
+
+    };
+
+    const res = await authFetch('/api/tareas', {
+
+        method: 'POST',
+
+        headers: {
+            'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify(data)
+
+    });
+
+    if (res.ok) {
+
+        alert('✅ Tarea creada');
+
+        document
+        .getElementById('formTarea')
+        .reset();
+
+        const modal = bootstrap.Modal.getInstance(
+            document.getElementById('modalTarea')
+        );
+
+        modal.hide();
+
+        cargarTareas();
+
+    }
+
+    else {
+
+        alert('Error al crear tarea');
+
+    }
+
+});
+
+// ─────────────────────────────────────
+// CAMBIAR ESTADO
+// ─────────────────────────────────────
+async function cambiarEstado(id, estado) {
+
+    const res = await authFetch(`/api/tareas/${id}`, {
+
+        method: 'PUT',
+
+        headers: {
+            'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify({ estado })
+
+    });
+
+    if (res.ok) {
+
+        cargarTareas();
+
+    }
+
+}
+
+// ─────────────────────────────────────
+// LOGOUT
+// ─────────────────────────────────────
+function logout() {
+
+    localStorage.clear();
+
+    window.location.href = 'InicioS.html';
+
+}
+
+</script>
 
 </body>
+
 </html>
