@@ -347,35 +347,76 @@ app.get('/api/publicaciones', authMiddleware, async (req, res) => {
 
 // OBTENER TAREAS DEL USUARIO
 app.get('/api/tareas', authMiddleware, async (req, res) => {
+
   try {
-    const { data, error } = await supabase
+
+    // TAREAS DEL USUARIO
+    const { data: tareasUsuario, error: err1 } = await supabase
       .from('tareas_usuarios')
-      .select(`
-        id,
-        estado,
-        tarea_id,
-        tareas!fk_tarea (
-          id,
-          titulo,
-          descripcion,
-          fecha_limite
-        )
-      `)
+      .select('*')
       .eq('usuario_id', req.user.id);
-    if (error) {
-      console.log(error);
+
+    if (err1) {
+
+      console.log(err1);
+
       return res.status(500).json({
-        error: error.message
+        error: err1.message
       });
+
     }
-    res.json(data);
+
+    // IDS DE TAREAS
+    const ids = tareasUsuario.map(t => t.tarea_id);
+
+    if (ids.length === 0) {
+      return res.json([]);
+    }
+
+    // OBTENER INFO DE TAREAS
+    const { data: tareas, error: err2 } = await supabase
+      .from('tareas')
+      .select('*')
+      .in('id', ids);
+
+    if (err2) {
+
+      console.log(err2);
+
+      return res.status(500).json({
+        error: err2.message
+      });
+
+    }
+
+    // COMBINAR
+    const resultado = tareasUsuario.map(tu => {
+
+      const tarea = tareas.find(t => t.id === tu.tarea_id);
+
+      return {
+
+        ...tu,
+        tareas: tarea
+
+      };
+
+    });
+
+    res.json(resultado);
+
   }
+
   catch(err) {
+
     console.log(err);
+
     res.status(500).json({
       error: 'Error al obtener tareas'
     });
+
   }
+
 });
 
 // CREAR TAREA GLOBAL
