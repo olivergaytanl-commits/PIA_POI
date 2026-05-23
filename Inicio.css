@@ -259,9 +259,8 @@ body{
     padding: 14px;
     width: 220px;
     box-shadow: 0 4px 16px rgba(0,0,0,.12);
+    transition: opacity .3s ease;
 }
-.usuario-wrap:hover .user-popover,
-.user-popover:hover { display: block; }
 
 .popover-avatar {
     width: 52px;
