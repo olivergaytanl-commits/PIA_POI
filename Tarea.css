@@ -135,6 +135,34 @@ margin-bottom:10px;
 }
 
 
+/* ── SECCIÓN CREADAS POR MÍ ──────────────────── */
+
+.seccion-creadas {
+  margin-top: 40px;
+}
+
+.titulo-creadas {
+  margin-bottom: 16px;
+}
+
+.fila-creadas {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 20px;
+  padding-bottom: 12px;
+}
+
+.fila-creadas .tarjeta-tarea {
+  flex: 0 0 240px;
+  background: white;
+  border-radius: 10px;
+  padding: 16px;
+  color: black;
+  margin-bottom: 0;
+}
+
 /* ── RECUADROS DE ASIGNADOS ───────────────────── */
 
 .asignados-tarea {

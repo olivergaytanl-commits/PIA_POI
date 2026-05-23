@@ -133,7 +133,7 @@
       </div>
     </div>
 
-    <!-- COLUMNAS -->
+    <!-- COLUMNAS KANBAN -->
     <div class="contenedor-tareas">
 
       <!-- NO INICIADA -->
@@ -154,12 +154,14 @@
         <div id="completada"><p>No hay tareas aquí</p></div>
       </div>
 
-      <!-- CREADAS POR MÍ -->
-      <div class="columna-tarea">
-        <h4>📋 Creadas por mí (<span id="countCreadas">0</span>)</h4>
-        <div id="creadasPorMi"><p>No hay tareas aquí</p></div>
-      </div>
+    </div>
 
+    <!-- SECCIÓN: CREADAS POR MÍ -->
+    <div class="seccion-creadas">
+      <h4 class="titulo-creadas">📋 Creadas por mí (<span id="countCreadas">0</span>)</h4>
+      <div id="creadasPorMi" class="fila-creadas">
+        <p>No hay tareas aquí</p>
+      </div>
     </div>
 
   </div>
@@ -267,7 +269,6 @@ async function cargarTareas() {
       if (tarea.estado === null) {
 
         div.innerHTML = `
-          <span class="badge-creador">Creador</span>
           <strong>${tareaGlobal.titulo}</strong>
           <p>${tareaGlobal.descripcion}</p>
           <small>Fecha límite: ${new Date(tareaGlobal.fecha_limite).toLocaleDateString()}</small>
