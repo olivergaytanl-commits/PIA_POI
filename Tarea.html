@@ -108,16 +108,14 @@
                   </div>
                 </div>
 
-                <div id="panelUsuarios" style="display:none;">
+                <div id="panelUsuarios" class="panel-usuarios">
                   <input
                     type="text"
                     id="buscarUsuario"
                     class="form-control form-control-sm mb-2"
                     placeholder="🔍 Buscar por nombre..."
                     oninput="filtrarUsuarios()">
-                  <div
-                    id="listaUsuarios"
-                    style="max-height:180px; overflow-y:auto; border:1px solid #444; border-radius:6px; padding:6px; background:#1a1a1a;">
+                  <div id="listaUsuarios" class="lista-usuarios">
                     <small class="text-muted">Cargando usuarios...</small>
                   </div>
                   <small class="text-muted mt-1 d-block" id="contadorSeleccionados"></small>
@@ -375,7 +373,7 @@ function renderListaUsuarios(lista) {
         id="u_${u.id}"
         ${usuariosSeleccionados.has(u.id) ? 'checked' : ''}
         onchange="toggleUsuario(${u.id})">
-      <label class="form-check-label" for="u_${u.id}" style="cursor:pointer;">
+      <label class="form-check-label" for="u_${u.id}" class="label-usuario">
         <strong>${u.full_name || '(sin nombre)'}</strong>
         <small class="text-muted ms-1">${u.email}</small>
       </label>

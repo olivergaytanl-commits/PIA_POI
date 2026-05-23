@@ -114,3 +114,22 @@ padding:10px;
 border-radius:8px;
 margin-bottom:10px;
 }
+
+/* ── ASIGNACIÓN DE TAREAS ─────────────────────── */
+
+#panelUsuarios {
+  display: none;
+}
+
+.lista-usuarios {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 6px;
+  background: #ffffff;
+}
+
+.label-usuario {
+  cursor: pointer;
+}
