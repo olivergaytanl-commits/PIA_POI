@@ -347,36 +347,73 @@ app.get('/api/publicaciones', authMiddleware, async (req, res) => {
 app.get('/api/publicaciones/:id/comentarios', authMiddleware, async (req, res) => {
   const pubId = req.params.id;
 
+  // Primero insertamos sin join para verificar que la tabla existe
   const { data, error } = await supabase
     .from('comentarios')
-    .select('id, contenido, created_at, users(id, full_name, img_profile)')
+    .select('id, contenido, created_at, user_id')
     .eq('publicacion_id', pubId)
     .order('created_at', { ascending: true });
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  if (error) {
+    console.error('❌ GET comentarios error:', error);
+    return res.status(500).json({ error: error.message, detalle: error });
+  }
+
+  // Enriquecer con datos del usuario manualmente
+  if (!data.length) return res.json([]);
+
+  const userIds = [...new Set(data.map(c => c.user_id))];
+  const { data: usuarios } = await supabase
+    .from('users')
+    .select('id, full_name, img_profile')
+    .in('id', userIds);
+
+  const userMap = {};
+  (usuarios || []).forEach(u => { userMap[u.id] = u; });
+
+  const resultado = data.map(c => ({
+    ...c,
+    users: userMap[c.user_id] || { full_name: 'Usuario', img_profile: null }
+  }));
+
+  res.json(resultado);
 });
 
 // POST nuevo comentario
 app.post('/api/publicaciones/:id/comentarios', authMiddleware, async (req, res) => {
-  const pubId    = req.params.id;
+  const pubId = req.params.id;
   const { contenido } = req.body;
 
   if (!contenido || !contenido.trim())
     return res.status(400).json({ error: 'El comentario no puede estar vacío' });
 
-  const { data, error } = await supabase
+  // Insertar sin join primero
+  const { data: nuevo, error } = await supabase
     .from('comentarios')
     .insert([{
-      publicacion_id: pubId,
+      publicacion_id: parseInt(pubId),
       user_id:        req.user.id,
       contenido:      contenido.trim()
     }])
-    .select('id, contenido, created_at, users(id, full_name, img_profile)')
+    .select('id, contenido, created_at, user_id')
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json(data);
+  if (error) {
+    console.error('❌ POST comentario error:', error);
+    return res.status(500).json({ error: error.message, detalle: error });
+  }
+
+  // Buscar datos del usuario
+  const { data: autor } = await supabase
+    .from('users')
+    .select('id, full_name, img_profile')
+    .eq('id', req.user.id)
+    .single();
+
+  res.status(201).json({
+    ...nuevo,
+    users: autor || { full_name: req.user.full_name, img_profile: null }
+  });
 });
 
 // Alias /api/amigos -> /api/friends (compatibilidad con el frontend)
