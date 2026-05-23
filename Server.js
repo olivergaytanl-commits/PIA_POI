@@ -578,7 +578,7 @@ app.get('/api/me', authMiddleware, async (req, res) => {
 // EDITAR PERFIL PROPIO
 app.put('/api/me', authMiddleware, async (req, res) => {
   const uid = req.user.id;
-  const { full_name, email, current_password, new_password } = req.body;
+  const { full_name, email, current_password, new_password, img_profile } = req.body;
   if (!current_password)
     return res.status(400).json({ error: 'La contraseña actual es requerida' });
   // Verificar contraseña actual
@@ -595,6 +595,7 @@ app.put('/api/me', authMiddleware, async (req, res) => {
   if (full_name) updates.full_name = full_name;
   if (email)     updates.email     = email;
   if (new_password) updates.password = await bcrypt.hash(new_password, 10);
+  if (img_profile !== undefined) updates.img_profile = img_profile;
   const { data: updated, error: e2 } = await supabase
     .from('users')
     .update(updates)

@@ -7,6 +7,65 @@
   <link href="Perfil.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
   <title>Perfil</title>
+  <style>
+    /* Foto clickeable */
+    .foto-wrapper {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      margin: 0 auto 16px auto;
+      cursor: pointer;
+    }
+    .foto-wrapper:hover .foto-overlay {
+      opacity: 1;
+    }
+    .foto-perfil {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 3px solid #446447;
+      background: #EDFFE4;
+      object-fit: cover;
+      display: block;
+    }
+    .foto-placeholder {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 3px solid #446447;
+      background: #EDFFE4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+    }
+    .foto-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.3;
+    }
+    #inputFoto { display: none; }
+    .preview-nueva {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 3px dashed #446447;
+      object-fit: cover;
+      margin: 0 auto 8px auto;
+      display: block;
+    }
+  </style>
 </head>
 <body>
 
@@ -44,8 +103,13 @@
       <h1>Perfil</h1>
       <p class="subtitulo">Tu información personal.</p>
 
-      <!-- FOTO -->
-      <div class="foto-perfil" id="fotoPerfil"></div>
+      <!-- FOTO (solo lectura) -->
+      <div id="bloqueAvatarVista">
+        <div id="fotoPerfil" class="foto-placeholder">👤</div>
+        <p style="font-size:0.78rem;color:#888;margin-top:4px;margin-bottom:16px;">
+          Edita tu perfil para cambiar la foto
+        </p>
+      </div>
 
       <!-- MONEDAS -->
       <div class="monedas-badge" id="monedasBadge">
@@ -84,6 +148,22 @@
 
       <!-- VISTA: edición -->
       <div id="vistaEdicion" class="d-none">
+
+        <!-- Foto editable -->
+        <div class="mb-3 text-center">
+          <label style="font-size:0.78rem;color:#888;display:block;margin-bottom:6px;">
+            Foto de perfil
+          </label>
+          <!-- Foto preview clickeable -->
+          <div class="foto-wrapper" onclick="document.getElementById('inputFoto').click()" title="Cambiar foto">
+            <div id="previewFotoEdit" class="foto-placeholder">👤</div>
+            <div class="foto-overlay">📷<br>Cambiar</div>
+          </div>
+          <input type="file" id="inputFoto" accept="image/*" onchange="previsualizarFoto(event)">
+          <p style="font-size:0.75rem;color:#888;margin-top:4px;">
+            Haz clic en la foto para cambiarla
+          </p>
+        </div>
 
         <div class="mb-3">
           <label class="form-label">Nombre completo</label>
@@ -131,6 +211,8 @@
 
 const BASE = 'https://pia-poi-cmdb.onrender.com';
 let token = null;
+let fotoBase64 = null;   // imagen nueva seleccionada (base64)
+let fotoActual = null;   // URL o base64 ya guardada
 
 // ─────────────────────────────────────
 // INIT
@@ -142,7 +224,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
   cargarPerfil();
 
-  // Mostrar campo "confirmar nueva contraseña" cuando escriben en nueva
   document.getElementById('editPasswordNueva').addEventListener('input', e => {
     const wrap = document.getElementById('confirmarNuevaWrap');
     wrap.classList.toggle('d-none', e.target.value === '');
@@ -161,6 +242,21 @@ function authFetch(url, opts = {}) {
 }
 
 // ─────────────────────────────────────
+// RENDERIZAR AVATAR
+// ─────────────────────────────────────
+function renderAvatar(contenedorId, src) {
+  const cont = document.getElementById(contenedorId);
+  if (!cont) return;
+  if (src) {
+    cont.outerHTML = `<img id="${contenedorId}" src="${src}" class="foto-perfil" alt="Foto de perfil">`;
+  } else {
+    // Si no tiene foto, deja el placeholder
+    cont.innerHTML = '👤';
+    cont.className = 'foto-placeholder';
+  }
+}
+
+// ─────────────────────────────────────
 // CARGAR PERFIL
 // ─────────────────────────────────────
 async function cargarPerfil() {
@@ -170,14 +266,48 @@ async function cargarPerfil() {
 
   const user = await res.json();
 
-  document.getElementById('verNombre').textContent   = user.full_name  || '—';
-  document.getElementById('verEmail').textContent    = user.email      || '—';
-  document.getElementById('totalMonedas').textContent = user.monedas   ?? 0;
+  document.getElementById('verNombre').textContent    = user.full_name || '—';
+  document.getElementById('verEmail').textContent     = user.email     || '—';
+  document.getElementById('totalMonedas').textContent = user.monedas  ?? 0;
 
   // Pre-rellenar campos de edición
   document.getElementById('editNombre').value = user.full_name || '';
   document.getElementById('editEmail').value  = user.email     || '';
 
+  // Guardar foto actual
+  fotoActual = user.img_profile || null;
+
+  // Mostrar foto en vista solo-lectura
+  renderAvatar('fotoPerfil', fotoActual);
+
+}
+
+// ─────────────────────────────────────
+// PREVISUALIZAR FOTO NUEVA
+// ─────────────────────────────────────
+function previsualizarFoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Validar tamaño: máximo 1 MB (base64 ~1.3× el original)
+  if (file.size > 1 * 1024 * 1024) {
+    alert('La imagen debe pesar menos de 1 MB.');
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    fotoBase64 = e.target.result;          // data:image/...;base64,...
+    // Mostrar preview en modo edición
+    const preview = document.getElementById('previewFotoEdit');
+    if (preview.tagName === 'IMG') {
+      preview.src = fotoBase64;
+    } else {
+      preview.outerHTML = `<img id="previewFotoEdit" src="${fotoBase64}" class="foto-perfil" alt="Preview">`;
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ─────────────────────────────────────
@@ -186,15 +316,36 @@ async function cargarPerfil() {
 function activarEdicion() {
   document.getElementById('vistaInfo').classList.add('d-none');
   document.getElementById('vistaEdicion').classList.remove('d-none');
-  document.getElementById('editPasswordActual').value = '';
-  document.getElementById('editPasswordNueva').value  = '';
+  document.getElementById('editPasswordActual').value  = '';
+  document.getElementById('editPasswordNueva').value   = '';
   document.getElementById('editPasswordConfirm').value = '';
   document.getElementById('confirmarNuevaWrap').classList.add('d-none');
+
+  // Resetear foto nueva
+  fotoBase64 = null;
+  document.getElementById('inputFoto').value = '';
+
+  // Mostrar foto actual en el editor
+  const preview = document.getElementById('previewFotoEdit');
+  if (fotoActual) {
+    if (preview.tagName === 'IMG') {
+      preview.src = fotoActual;
+    } else {
+      preview.outerHTML = `<img id="previewFotoEdit" src="${fotoActual}" class="foto-perfil" alt="Preview">`;
+    }
+  } else {
+    if (preview.tagName === 'IMG') {
+      preview.outerHTML = `<div id="previewFotoEdit" class="foto-placeholder">👤</div>`;
+    } else {
+      preview.innerHTML = '👤';
+    }
+  }
 }
 
 function cancelarEdicion() {
   document.getElementById('vistaEdicion').classList.add('d-none');
   document.getElementById('vistaInfo').classList.remove('d-none');
+  fotoBase64 = null;
 }
 
 // ─────────────────────────────────────
@@ -224,6 +375,9 @@ async function guardarPerfil() {
 
   if (new_password) body.new_password = new_password;
 
+  // Incluir foto solo si el usuario seleccionó una nueva
+  if (fotoBase64) body.img_profile = fotoBase64;
+
   const res = await authFetch('/api/me', {
     method:  'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -237,7 +391,7 @@ async function guardarPerfil() {
     return;
   }
 
-  // Actualizar localStorage con datos y token nuevos
+  // Actualizar localStorage
   localStorage.setItem('token', result.token);
   localStorage.setItem('user', JSON.stringify(result.user));
 
