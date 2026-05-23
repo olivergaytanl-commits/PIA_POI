@@ -103,6 +103,18 @@ body {
 
 /* ── FOTO DE PERFIL ──────────────────────── */
 
+#bloqueAvatarVista {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.foto-perfil,
+.foto-placeholder {
+  margin: 0 auto;
+}
+
 .foto-wrapper {
   position: relative;
   width: 90px;
