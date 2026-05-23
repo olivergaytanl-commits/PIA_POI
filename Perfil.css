@@ -17,77 +17,165 @@
   font-weight: bold;
 }
 
-hr{
-    margin: 0;
+hr {
+  margin: 0;
 }
 
-/*Este diseño se pone a todo el texto dentro de body*/
-body{
-    font-family: 'Raleway', sans-serif;
-    color:black;
-    background:#EDFFE4;
+body {
+  font-family: 'Raleway', sans-serif;
+  background: #EDFFE4;
+  color: black;
 }
 
-.perfil-card{
-    background:white;
-    padding:40px;
-    width:400px;
-    border-radius:15px;
-    text-align:center;
-    box-shadow:0px 0px 20px rgba(0,0,0,0.4);
+/* ── LAYOUT ───────────────────────────────── */
+
+.layout {
+  display: flex;
+  background-color: #EDFFE4;
 }
 
-.subtitulo{
-    color:black;
-    margin-bottom:25px;
+.sidebar {
+  width: 250px;
+  height: 93.7vh;
+  background-color: #72A877;
+  color: white;
+  padding: 20px;
 }
 
-.foto-perfil{
-    width:100px;
-    height:100px;
-    border-radius:50%;
-    border:3px solid #666F62;
-    margin:0 auto 25px auto;
+.sidebar ul {
+  list-style: none;
+  padding: 0;
 }
 
-.logros{
-    background:#EDFFE4;
-    padding:15px;
-    border-radius:10px;
-    text-align:left;
-    margin-bottom:25px;
+.sidebar li {
+  padding: 10px 0;
+  cursor: pointer;
 }
 
-.logros h3{
-    margin:0;
-    font-size:16px;
+.sidebar li:hover {
+  background-color: #869181;
 }
 
-.logros p{
-    margin-top:5px;
-    color:#2e4d6f;
-    font-size:14px;
+.sidebar a {
+  text-decoration: none;
+  color: white;
+  display: block;
+  padding: 10px;
 }
 
-form{
-    text-align:left;
+.contenido {
+  flex: 1;
+  padding: 40px;
+  display: flex;
+  justify-content: center;
 }
 
-label{
-    display:block;
-    margin-top:15px;
-    margin-bottom:5px;
+/* ── CARD ─────────────────────────────────── */
+
+.perfil-card {
+  background: white;
+  padding: 40px;
+  width: 440px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0,0,0,0.15);
+  height: fit-content;
 }
 
-input{
-    width:100%;
-    padding:10px;
-    border-radius:8px;
-    border:1px solid #869181;
-    background:#EDFFE4;
-    color:white;
+.subtitulo {
+  color: #666;
+  margin-bottom: 20px;
 }
 
-.perfil-card button{
-    margin-top: 15px;
+/* ── FOTO ─────────────────────────────────── */
+
+.foto-perfil {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 3px solid #446447;
+  margin: 0 auto 16px auto;
+  background: #EDFFE4;
+}
+
+/* ── MONEDAS ──────────────────────────────── */
+
+.monedas-badge {
+  display: inline-block;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  color: #7a5800;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 4px 16px;
+  border-radius: 20px;
+  margin-bottom: 20px;
+}
+
+/* ── LOGROS ───────────────────────────────── */
+
+.logros {
+  background: #EDFFE4;
+  padding: 15px;
+  border-radius: 10px;
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.logros h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.logros p {
+  margin-top: 5px;
+  color: #2e4d6f;
+  font-size: 13px;
+  margin-bottom: 0;
+}
+
+/* ── VISTA SOLO LECTURA ───────────────────── */
+
+.campo-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+  padding: 10px 0;
+}
+
+.campo-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+}
+
+.campo-valor {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222;
+  margin-top: 2px;
+}
+
+.campo-password {
+  letter-spacing: 0.15em;
+  color: #aaa;
+}
+
+/* ── FORMULARIO EDICIÓN ───────────────────── */
+
+.form-control {
+  background: #EDFFE4;
+  border: 1px solid #869181;
+}
+
+.form-control:focus {
+  background: #fff;
+  border-color: #446447;
+  box-shadow: 0 0 0 0.2rem rgba(68,100,71,0.15);
+}
+
+.pequeño {
+  font-size: 0.82rem;
 }

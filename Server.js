@@ -558,6 +558,59 @@ app.put('/api/tareas/:tareaId/finalizar', authMiddleware, async (req, res) => {
 
 });
 
+// OBTENER PERFIL PROPIO
+app.get('/api/me', authMiddleware, async (req, res) => {
+  const uid = req.user.id;
+  const { data: user, error: e1 } = await supabase
+    .from('users')
+    .select('id, full_name, email, img_profile')
+    .eq('id', uid)
+    .single();
+  if (e1 || !user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  const { data: monedas } = await supabase
+    .from('monedas')
+    .select('total')
+    .eq('usuario_id', uid)
+    .single();
+  res.json({ ...user, monedas: monedas ? monedas.total : 0 });
+});
+
+// EDITAR PERFIL PROPIO
+app.put('/api/me', authMiddleware, async (req, res) => {
+  const uid = req.user.id;
+  const { full_name, email, current_password, new_password } = req.body;
+  if (!current_password)
+    return res.status(400).json({ error: 'La contraseña actual es requerida' });
+  // Verificar contraseña actual
+  const { data: user, error: e1 } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', uid)
+    .single();
+  if (e1 || !user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  const valid = await bcrypt.compare(current_password, user.password);
+  if (!valid) return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+  // Construir objeto de actualización
+  const updates = {};
+  if (full_name) updates.full_name = full_name;
+  if (email)     updates.email     = email;
+  if (new_password) updates.password = await bcrypt.hash(new_password, 10);
+  const { data: updated, error: e2 } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', uid)
+    .select('id, full_name, email, img_profile')
+    .single();
+  if (e2) return res.status(500).json({ error: e2.message });
+  // Refrescar token con datos nuevos
+  const token = jwt.sign(
+    { id: updated.id, email: updated.email, full_name: updated.full_name },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+  res.json({ user: updated, token });
+});
+
 // LISTAR TODOS LOS USUARIOS (para el selector de asignación)
 app.get('/api/users', authMiddleware, async (req, res) => {
   const { data, error } = await supabase

@@ -1,56 +1,261 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
-          rel="stylesheet">
-    <link href="Perfil.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
-    <title>Perfil</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="Perfil.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Raleway&display=swap" rel="stylesheet">
+  <title>Perfil</title>
 </head>
 <body>
 
-<nav class="navbar">
-          
-    <a href="Inicio.html" class="sesion nav-left">BetGol ⚽</a>
-          
-    <a href="Registro.html" class="sesion nav-right">Info</a>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
+<nav class="navbar">
+  <a href="Inicio.html" class="sesion nav-left">BetGol ⚽</a>
+  <button class="sesion nav-right btn btn-outline-danger" onclick="logout()">Salir 🚪</button>
 </nav>
 
 <hr>
 
-<div class="perfil-card mx-auto mt-5">
+<div class="layout">
 
-    <h1>Perfil</h1>
-    <p class="subtitulo">Tu información de perfil y logros.</p>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <h2>Servicios en línea:</h2>
+    <ul>
+      <li><a href="Publi.html">Crear publicación</a></li>
+      <li><a href="Chat.html">Chats</a></li>
+      <li><a href="Tarea.html">Tareas</a></li>
+      <li><a href="Perfil.html">Perfil</a></li>
+      <li><a href="Ayuda.html">Ayuda</a></li>
+      <hr>
+      <li><a href="InicioS.html">Iniciar sesión</a></li>
+      <li><a onclick="logout()">Cerrar sesión</a></li>
+    </ul>
+  </aside>
 
-    <div class="foto-perfil"></div>
+  <!-- CONTENIDO -->
+  <div class="contenido">
 
-    <div class="logros">
+    <div class="perfil-card mx-auto">
+
+      <h1>Perfil</h1>
+      <p class="subtitulo">Tu información personal.</p>
+
+      <!-- FOTO -->
+      <div class="foto-perfil" id="fotoPerfil"></div>
+
+      <!-- MONEDAS -->
+      <div class="monedas-badge" id="monedasBadge">
+        🪙 <span id="totalMonedas">0</span> monedas
+      </div>
+
+      <!-- LOGROS -->
+      <div class="logros">
         <h3>🏆 Logros Desbloqueados</h3>
         <p>Aún no has desbloqueado logros nuevos, ¡interactúa con la app!</p>
+      </div>
+
+      <!-- VISTA: solo lectura -->
+      <div id="vistaInfo">
+
+        <div class="campo-info">
+          <span class="campo-label">Nombre completo</span>
+          <span class="campo-valor" id="verNombre">—</span>
+        </div>
+
+        <div class="campo-info">
+          <span class="campo-label">Correo electrónico</span>
+          <span class="campo-valor" id="verEmail">—</span>
+        </div>
+
+        <div class="campo-info">
+          <span class="campo-label">Contraseña</span>
+          <span class="campo-valor campo-password">••••••••</span>
+        </div>
+
+        <button class="btn btn-outline-success w-100 mt-4" onclick="activarEdicion()">
+          ✏️ Editar perfil
+        </button>
+
+      </div>
+
+      <!-- VISTA: edición -->
+      <div id="vistaEdicion" class="d-none">
+
+        <div class="mb-3">
+          <label class="form-label">Nombre completo</label>
+          <input type="text" id="editNombre" class="form-control">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Correo electrónico</label>
+          <input type="email" id="editEmail" class="form-control">
+        </div>
+
+        <hr class="my-3">
+
+        <p class="text-muted pequeño">Para guardar cualquier cambio debes confirmar tu contraseña actual.</p>
+
+        <div class="mb-3">
+          <label class="form-label">Contraseña actual <span class="text-danger">*</span></label>
+          <input type="password" id="editPasswordActual" class="form-control" placeholder="Requerida para guardar">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Nueva contraseña <span class="text-muted">(opcional)</span></label>
+          <input type="password" id="editPasswordNueva" class="form-control" placeholder="Dejar vacío para no cambiar">
+        </div>
+
+        <div class="mb-3 d-none" id="confirmarNuevaWrap">
+          <label class="form-label">Confirmar nueva contraseña</label>
+          <input type="password" id="editPasswordConfirm" class="form-control">
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button class="btn btn-success flex-grow-1" onclick="guardarPerfil()">Guardar</button>
+          <button class="btn btn-outline-secondary flex-grow-1" onclick="cancelarEdicion()">Cancelar</button>
+        </div>
+
+      </div>
+
     </div>
 
-    <form>
-
-        <label>Username</label>
-        <input type="text">
-
-        <label>Nombre Completo</label>
-        <input type="text">
-
-        <label>Correo Electrónico</label>
-        <input type="email">
-
-    </form>
-
-    <button class="btn btn-outline-success w-50">
-    Editar
-    </button>
+  </div>
 
 </div>
+
+<script>
+
+const BASE = 'https://pia-poi-cmdb.onrender.com';
+let token = null;
+
+// ─────────────────────────────────────
+// INIT
+// ─────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+
+  token = localStorage.getItem('token');
+  if (!token) { window.location.href = 'InicioS.html'; return; }
+
+  cargarPerfil();
+
+  // Mostrar campo "confirmar nueva contraseña" cuando escriben en nueva
+  document.getElementById('editPasswordNueva').addEventListener('input', e => {
+    const wrap = document.getElementById('confirmarNuevaWrap');
+    wrap.classList.toggle('d-none', e.target.value === '');
+  });
+
+});
+
+// ─────────────────────────────────────
+// AUTH FETCH
+// ─────────────────────────────────────
+function authFetch(url, opts = {}) {
+  return fetch(BASE + url, {
+    ...opts,
+    headers: { ...(opts.headers || {}), 'Authorization': `Bearer ${token}` }
+  });
+}
+
+// ─────────────────────────────────────
+// CARGAR PERFIL
+// ─────────────────────────────────────
+async function cargarPerfil() {
+
+  const res = await authFetch('/api/me');
+  if (!res.ok) { window.location.href = 'InicioS.html'; return; }
+
+  const user = await res.json();
+
+  document.getElementById('verNombre').textContent   = user.full_name  || '—';
+  document.getElementById('verEmail').textContent    = user.email      || '—';
+  document.getElementById('totalMonedas').textContent = user.monedas   ?? 0;
+
+  // Pre-rellenar campos de edición
+  document.getElementById('editNombre').value = user.full_name || '';
+  document.getElementById('editEmail').value  = user.email     || '';
+
+}
+
+// ─────────────────────────────────────
+// ACTIVAR / CANCELAR EDICIÓN
+// ─────────────────────────────────────
+function activarEdicion() {
+  document.getElementById('vistaInfo').classList.add('d-none');
+  document.getElementById('vistaEdicion').classList.remove('d-none');
+  document.getElementById('editPasswordActual').value = '';
+  document.getElementById('editPasswordNueva').value  = '';
+  document.getElementById('editPasswordConfirm').value = '';
+  document.getElementById('confirmarNuevaWrap').classList.add('d-none');
+}
+
+function cancelarEdicion() {
+  document.getElementById('vistaEdicion').classList.add('d-none');
+  document.getElementById('vistaInfo').classList.remove('d-none');
+}
+
+// ─────────────────────────────────────
+// GUARDAR PERFIL
+// ─────────────────────────────────────
+async function guardarPerfil() {
+
+  const current_password = document.getElementById('editPasswordActual').value.trim();
+  const new_password     = document.getElementById('editPasswordNueva').value;
+  const confirm_password = document.getElementById('editPasswordConfirm').value;
+
+  if (!current_password) {
+    alert('Debes ingresar tu contraseña actual para guardar cambios.');
+    return;
+  }
+
+  if (new_password && new_password !== confirm_password) {
+    alert('Las contraseñas nuevas no coinciden.');
+    return;
+  }
+
+  const body = {
+    full_name:        document.getElementById('editNombre').value.trim(),
+    email:            document.getElementById('editEmail').value.trim(),
+    current_password
+  };
+
+  if (new_password) body.new_password = new_password;
+
+  const res = await authFetch('/api/me', {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body)
+  });
+
+  const result = await res.json();
+
+  if (!res.ok) {
+    alert(result.error || 'Error al guardar');
+    return;
+  }
+
+  // Actualizar localStorage con datos y token nuevos
+  localStorage.setItem('token', result.token);
+  localStorage.setItem('user', JSON.stringify(result.user));
+
+  alert('✅ Perfil actualizado correctamente');
+  cancelarEdicion();
+  cargarPerfil();
+
+}
+
+// ─────────────────────────────────────
+// LOGOUT
+// ─────────────────────────────────────
+function logout() {
+  localStorage.clear();
+  window.location.href = 'InicioS.html';
+}
+
+</script>
 
 </body>
 </html>
