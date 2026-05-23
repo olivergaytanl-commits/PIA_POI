@@ -403,7 +403,7 @@ app.post('/api/publicaciones/:id/comentarios', authMiddleware, async (req, res) 
     return res.status(500).json({ error: error.message, detalle: error });
   }
 
-  // Buscar datos del usuario
+  // Buscar datos del usuario 
   const { data: autor } = await supabase
     .from('users')
     .select('id, full_name, img_profile')
