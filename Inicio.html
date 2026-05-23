@@ -107,6 +107,7 @@ Filtros
     return colores[cat] || '#72A877'; // verde por default
     }
 
+    /* ── Cargar y renderizar publicaciones ── */
     async function cargarPublicaciones() {
         const res  = await authFetch('/api/publicaciones');
         const data = await res.json();
@@ -119,20 +120,153 @@ Filtros
         }
 
         data.forEach(p => {
+            const postId   = p.id;
+            const autorId  = p.users?.id || p.user_id || '';
+            const autorNombre = p.users?.full_name || 'Usuario';
+            const autorAvatar = p.users?.img_profile || 'perfil.jpg';
+            const autorBio    = p.users?.bio || '';
+
             const div = document.createElement('div');
             div.className = 'post';
+            div.dataset.postId = postId;
+
             div.innerHTML = `
                 <div class="post-header">
-                    <img src="${p.users?.img_profile || 'perfil.jpg'}" class="foto-perfil">
-                    <span class="usuario">${p.users?.full_name || 'Usuario'}</span>
+                    <div class="usuario-wrap">
+                        <img src="${autorAvatar}" class="foto-perfil">
+                        <span class="usuario">${autorNombre}</span>
+
+                        <div class="user-popover">
+                            <img src="${autorAvatar}" class="popover-avatar">
+                            <div class="popover-nombre">${autorNombre}</div>
+                            <div class="popover-bio">${autorBio}</div>
+                            <div class="popover-acciones">
+                                <button class="btn-agregar"
+                                        onclick="agregarAmigo('${autorId}', '${autorNombre}')">
+                                    ➕ Agregar
+                                </button>
+                                <button class="btn-mensaje"
+                                        onclick="irAChat('${autorId}')">
+                                    💬 Mensaje
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
                 <h4 class="post-titulo">${p.titulo}</h4>
                 <span class="categoria" style="background:${colorCategoria(p.categoria)}">${p.categoria}</span>
                 <p class="post-texto">${p.datos}</p>
                 ${p.media_url ? `<img src="${p.media_url}" class="post-imagen">` : ''}
+
+                <div class="post-actions">
+                    <button class="btn-comentarios" onclick="toggleComentarios(this, '${postId}')">
+                        💬 <span class="lbl">Ver comentarios</span>
+                    </button>
+                </div>
+
+                <div class="seccion-comentarios" id="cmt-${postId}">
+                    <div class="lista-comentarios" id="lista-${postId}">
+                        <p style="font-size:13px;color:#aaa;">Cargando...</p>
+                    </div>
+                    <div class="input-comentario">
+                        <img src="${currentUser?.img_profile || 'perfil.jpg'}"
+                             style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                        <input type="text" placeholder="Escribe un comentario…"
+                               id="inp-${postId}"
+                               onkeydown="if(event.key==='Enter') enviarComentario('${postId}')">
+                        <button onclick="enviarComentario('${postId}')">➤</button>
+                    </div>
+                </div>
             `;
+
             feed.appendChild(div);
         });
+    }
+
+    /* ── Toggle comentarios ── */
+    async function toggleComentarios(btn, postId) {
+        const seccion = document.getElementById(`cmt-${postId}`);
+        const lbl     = btn.querySelector('.lbl');
+        const visible = seccion.classList.toggle('visible');
+
+        if (visible) {
+            lbl.textContent = 'Ocultar comentarios';
+            await cargarComentarios(postId);
+        } else {
+            lbl.textContent = 'Ver comentarios';
+        }
+    }
+
+    /* ── Traer comentarios del servidor ── */
+    async function cargarComentarios(postId) {
+        const lista = document.getElementById(`lista-${postId}`);
+        try {
+            const res  = await authFetch(`/api/publicaciones/${postId}/comentarios`);
+            const data = await res.json();
+            renderComentarios(lista, data);
+        } catch {
+            lista.innerHTML = '<p style="font-size:13px;color:#aaa;">No se pudieron cargar los comentarios.</p>';
+        }
+    }
+
+    function renderComentarios(lista, data) {
+        if (!data.length) {
+            lista.innerHTML = '<p style="font-size:13px;color:#aaa;">Sin comentarios aún. ¡Sé el primero!</p>';
+            return;
+        }
+        lista.innerHTML = data.map(c => `
+            <div class="comentario-item">
+                <img src="${c.users?.img_profile || 'perfil.jpg'}">
+                <div class="comentario-burbuja">
+                    <strong>${c.users?.full_name || 'Usuario'}</strong>
+                    ${c.contenido}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    /* ── Enviar comentario ── */
+    async function enviarComentario(postId) {
+        const inp      = document.getElementById(`inp-${postId}`);
+        const contenido = inp.value.trim();
+        if (!contenido) return;
+
+        inp.value = '';
+        try {
+            const res = await authFetch(`/api/publicaciones/${postId}/comentarios`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contenido })
+            });
+            if (res.ok) await cargarComentarios(postId);
+        } catch {
+            alert('Error al enviar comentario');
+        }
+    }
+
+    /* ── Acciones de usuario (popover) ── */
+    async function agregarAmigo(userId, nombre) {
+        if (!userId) return alert('Usuario no identificado');
+        try {
+            const res = await authFetch('/api/amigos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ friend_id: userId })
+            });
+            if (res.ok) alert(`✅ Solicitud enviada a ${nombre}`);
+            else {
+                const d = await res.json();
+                alert(d.error || 'No se pudo enviar la solicitud');
+            }
+        } catch {
+            alert('Error al enviar solicitud');
+        }
+    }
+
+    function irAChat(userId) {
+        if (!userId) return alert('Usuario no identificado');
+        window.location.href = `Chat.html?user=${userId}`;
     }
 
     cargarPublicaciones();

@@ -334,11 +334,73 @@ app.post('/api/publicaciones', authMiddleware, async (req, res) => {
 app.get('/api/publicaciones', authMiddleware, async (req, res) => {
   const { data, error } = await supabase
     .from('publicaciones')
-    .select('*, users(full_name, img_profile)')
+    .select('*, users(id, full_name, img_profile)')
     .order('created_at', { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// ── Comentarios ──────────────────────────────────────────────────────────────
+
+// GET comentarios de una publicación
+app.get('/api/publicaciones/:id/comentarios', authMiddleware, async (req, res) => {
+  const pubId = req.params.id;
+
+  const { data, error } = await supabase
+    .from('comentarios')
+    .select('id, contenido, created_at, users(id, full_name, img_profile)')
+    .eq('publicacion_id', pubId)
+    .order('created_at', { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// POST nuevo comentario
+app.post('/api/publicaciones/:id/comentarios', authMiddleware, async (req, res) => {
+  const pubId    = req.params.id;
+  const { contenido } = req.body;
+
+  if (!contenido || !contenido.trim())
+    return res.status(400).json({ error: 'El comentario no puede estar vacío' });
+
+  const { data, error } = await supabase
+    .from('comentarios')
+    .insert([{
+      publicacion_id: pubId,
+      user_id:        req.user.id,
+      contenido:      contenido.trim()
+    }])
+    .select('id, contenido, created_at, users(id, full_name, img_profile)')
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+// Alias /api/amigos -> /api/friends (compatibilidad con el frontend)
+app.post('/api/amigos', authMiddleware, async (req, res) => {
+  const uid = req.user.id;
+  const { friend_id } = req.body;
+  if (!friend_id) return res.status(400).json({ error: 'friend_id requerido' });
+
+  const { data: existing } = await supabase
+    .from('friends')
+    .select('id')
+    .or(`and(user1_id.eq.${uid},user2_id.eq.${friend_id}),and(user1_id.eq.${friend_id},user2_id.eq.${uid})`)
+    .single();
+
+  if (existing) return res.status(409).json({ error: 'Ya son amigos o solicitud pendiente' });
+
+  const { data, error } = await supabase
+    .from('friends')
+    .insert([{ user1_id: uid, user2_id: friend_id }])
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

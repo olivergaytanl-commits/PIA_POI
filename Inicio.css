@@ -150,3 +150,156 @@ body{
     border-radius: 10px;
     margin-top: 10px;
 }
+
+.post-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.btn-comentarios {
+    background: none;
+    border: 1px solid #72A877;
+    color: #446447;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-comentarios:hover { background: #e8f5e9; }
+
+.seccion-comentarios {
+    display: none;
+    margin-top: 12px;
+    border-top: 1px solid #e0e0e0;
+    padding-top: 10px;
+}
+.seccion-comentarios.visible { display: block; }
+
+.comentario-item {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+}
+.comentario-item img {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.comentario-burbuja {
+    background: #f1f3f4;
+    border-radius: 12px;
+    padding: 6px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+.comentario-burbuja strong {
+    display: block;
+    font-size: 12px;
+    color: #446447;
+    margin-bottom: 2px;
+}
+
+.input-comentario {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    align-items: center;
+}
+.input-comentario input {
+    flex: 1;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    outline: none;
+    font-family: 'Raleway', sans-serif;
+}
+.input-comentario input:focus { border-color: #72A877; }
+.input-comentario button {
+    background: #446447;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.input-comentario button:hover { background: #2e4330; }
+
+.usuario-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.usuario-wrap .usuario { cursor: pointer; }
+
+.user-popover {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 999;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 14px;
+    width: 220px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.12);
+}
+.usuario-wrap:hover .user-popover,
+.user-popover:hover { display: block; }
+
+.popover-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    margin: 0 auto 8px;
+}
+.popover-nombre {
+    text-align: center;
+    font-weight: bold;
+    font-size: 14px;
+    color: #222;
+    margin-bottom: 4px;
+}
+.popover-bio {
+    text-align: center;
+    font-size: 12px;
+    color: #777;
+    margin-bottom: 10px;
+    min-height: 16px;
+}
+.popover-acciones {
+    display: flex;
+    gap: 6px;
+}
+.popover-acciones button {
+    flex: 1;
+    font-size: 12px;
+    padding: 5px 0;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    font-family: 'Raleway', sans-serif;
+    transition: opacity .2s;
+}
+.popover-acciones button:hover { opacity: .8; }
+.btn-agregar  { background: #446447; color: white; }
+.btn-mensaje  { background: #e8f5e9; color: #446447; border: 1px solid #72A877 !important; }
