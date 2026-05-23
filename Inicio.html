@@ -283,14 +283,14 @@ Filtros
         wrap.addEventListener('mouseleave', () => {
             timer = setTimeout(() => {
                 popover.style.display = 'none';
-            }, 300); // 300ms de gracia antes de ocultarse
+            }, 800); // 800ms de gracia antes de ocultarse
         });
 
         popover.addEventListener('mouseenter', () => clearTimeout(timer));
         popover.addEventListener('mouseleave', () => {
             timer = setTimeout(() => {
                 popover.style.display = 'none';
-            }, 300);
+            }, 800);
         });
     });
 }
