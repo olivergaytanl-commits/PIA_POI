@@ -133,3 +133,69 @@ margin-bottom:10px;
 .label-usuario {
   cursor: pointer;
 }
+
+
+/* ── RECUADROS DE ASIGNADOS ───────────────────── */
+
+.asignados-tarea {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.asignados-label {
+  color: #666;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chip-asignado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+}
+
+.chip-nombre {
+  font-weight: 600;
+}
+
+.chip-estado {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.chip-no-iniciada {
+  background: #fdecea;
+  border-color: #f5c6cb;
+  color: #7b2a2a;
+}
+
+.chip-en-progreso {
+  background: #fff8e1;
+  border-color: #ffe082;
+  color: #7a5800;
+}
+
+.chip-completada {
+  background: #e8f5e9;
+  border-color: #a5d6a7;
+  color: #1b5e20;
+}
+
+/* ── BADGE CREADOR ────────────────────────────── */
+
+.badge-creador {
+  display: inline-block;
+  background: #446447;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-bottom: 6px;
+}

@@ -154,6 +154,12 @@
         <div id="completada"><p>No hay tareas aquí</p></div>
       </div>
 
+      <!-- CREADAS POR MÍ -->
+      <div class="columna-tarea">
+        <h4>📋 Creadas por mí (<span id="countCreadas">0</span>)</h4>
+        <div id="creadasPorMi"><p>No hay tareas aquí</p></div>
+      </div>
+
     </div>
 
   </div>
@@ -221,114 +227,97 @@ async function cargarTareas() {
 
   try {
 
-    // FIX #1: GET en lugar de POST, sin body
     const res = await authFetch('/api/tareas');
+    if (!res.ok) { console.error('Error al cargar tareas:', res.status); return; }
 
-    if (!res.ok) {
-      console.error('Error al cargar tareas:', res.status);
-      return;
-    }
-
-    // FIX #2: guardado en "tareas" (antes era "result" sin usar)
     const tareas = await res.json();
 
-    const noIniciada  = document.getElementById('noIniciada');
-    const enProgreso  = document.getElementById('enProgreso');
-    const completada  = document.getElementById('completada');
+    const noIniciada   = document.getElementById('noIniciada');
+    const enProgreso   = document.getElementById('enProgreso');
+    const completada   = document.getElementById('completada');
+    const creadasPorMi = document.getElementById('creadasPorMi');
 
-    noIniciada.innerHTML = '';
-    enProgreso.innerHTML = '';
-    completada.innerHTML = '';
+    noIniciada.innerHTML   = '';
+    enProgreso.innerHTML   = '';
+    completada.innerHTML   = '';
+    creadasPorMi.innerHTML = '';
 
-    let countNo = 0;
-    let countProgreso = 0;
-    let countCompletada = 0;
+    let countNo = 0, countProgreso = 0, countCompletada = 0, countCreadas = 0;
 
     tareas.forEach(tarea => {
 
       const tareaGlobal = tarea.tareas;
-
       const div = document.createElement('div');
       div.className = 'tarjeta-tarea';
 
+      // Mini-recuadros de asignados
+      const chipsHTML = tarea.asignados && tarea.asignados.length > 0
+        ? `<div class="asignados-tarea">
+            <small class="asignados-label">Asignados:</small>
+            ${tarea.asignados.map(a => `
+              <div class="chip-asignado chip-${a.estado.replace(/ /g, '-')}">
+                <span class="chip-nombre">${a.nombre}</span>
+                <span class="chip-estado">${a.estado}</span>
+              </div>
+            `).join('')}
+          </div>`
+        : '';
+
+      // Tarea creada por mí (no estoy asignado)
+      if (tarea.estado === null) {
+
+        div.innerHTML = `
+          <span class="badge-creador">Creador</span>
+          <strong>${tareaGlobal.titulo}</strong>
+          <p>${tareaGlobal.descripcion}</p>
+          <small>Fecha límite: ${new Date(tareaGlobal.fecha_limite).toLocaleDateString()}</small>
+          ${chipsHTML}
+        `;
+        creadasPorMi.appendChild(div);
+        countCreadas++;
+        return;
+
+      }
+
       let botones = '';
 
-      // NO INICIADA
       if (tarea.estado === 'no iniciada') {
-
-        botones = `
-          <button
-            class="btn btn-warning btn-sm mt-2"
-            onclick="cambiarEstado(${tarea.id}, 'en progreso')">
-            Iniciar
-          </button>
-        `;
-
+        botones = `<button class="btn btn-warning btn-sm mt-2" onclick="cambiarEstado(${tarea.id}, 'en progreso')">Iniciar</button>`;
         countNo++;
-
-      }
-
-      // EN PROGRESO
-      else if (tarea.estado === 'en progreso') {
-
-        botones = `
-          <button
-            class="btn btn-success btn-sm mt-2"
-            onclick="cambiarEstado(${tarea.id}, 'completada')">
-            Completar
-          </button>
-        `;
-
+      } else if (tarea.estado === 'en progreso') {
+        botones = `<button class="btn btn-success btn-sm mt-2" onclick="cambiarEstado(${tarea.id}, 'completada')">Completar</button>`;
         countProgreso++;
-
-      }
-
-      // COMPLETADA
-      else {
-
+      } else {
         botones = `<small>✓ Terminada</small>`;
         countCompletada++;
-
       }
 
       div.innerHTML = `
         <strong>${tareaGlobal.titulo}</strong>
         <p>${tareaGlobal.descripcion}</p>
-        <small>
-          Fecha límite:
-          ${new Date(tareaGlobal.fecha_limite).toLocaleDateString()}
-        </small>
-        <br>
-        ${botones}
+        <small>Fecha límite: ${new Date(tareaGlobal.fecha_limite).toLocaleDateString()}</small>
+        <br>${botones}
+        ${chipsHTML}
       `;
 
-      if (tarea.estado === 'no iniciada') {
-        noIniciada.appendChild(div);
-      } else if (tarea.estado === 'en progreso') {
-        enProgreso.appendChild(div);
-      } else {
-        completada.appendChild(div);
-      }
+      if (tarea.estado === 'no iniciada') noIniciada.appendChild(div);
+      else if (tarea.estado === 'en progreso') enProgreso.appendChild(div);
+      else completada.appendChild(div);
 
     });
 
-    if (countNo === 0)
-      noIniciada.innerHTML = '<p>No hay tareas aquí</p>';
+    if (countNo === 0)       noIniciada.innerHTML   = '<p>No hay tareas aquí</p>';
+    if (countProgreso === 0) enProgreso.innerHTML   = '<p>No hay tareas aquí</p>';
+    if (countCompletada === 0) completada.innerHTML = '<p>No hay tareas aquí</p>';
+    if (countCreadas === 0)  creadasPorMi.innerHTML = '<p>No hay tareas aquí</p>';
 
-    if (countProgreso === 0)
-      enProgreso.innerHTML = '<p>No hay tareas aquí</p>';
-
-    if (countCompletada === 0)
-      completada.innerHTML = '<p>No hay tareas aquí</p>';
-
-    document.getElementById('countNo').innerText = countNo;
+    document.getElementById('countNo').innerText       = countNo;
     document.getElementById('countProgreso').innerText = countProgreso;
     document.getElementById('countCompletada').innerText = countCompletada;
+    document.getElementById('countCreadas').innerText  = countCreadas;
 
   } catch (err) {
-
     console.error('Error en cargarTareas:', err);
-
   }
 
 }

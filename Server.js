@@ -348,73 +348,78 @@ app.get('/api/publicaciones', authMiddleware, async (req, res) => {
 // OBTENER TAREAS DEL USUARIO
 app.get('/api/tareas', authMiddleware, async (req, res) => {
 
+  const uid = req.user.id;
+
   try {
 
-    // TAREAS DEL USUARIO
-    const { data: tareasUsuario, error: err1 } = await supabase
+    // 1. Tareas donde estoy asignado
+    const { data: misAsignaciones, error: e1 } = await supabase
       .from('tareas_usuarios')
       .select('*')
-      .eq('usuario_id', req.user.id);
+      .eq('usuario_id', uid);
+    if (e1) return res.status(500).json({ error: e1.message });
 
-    if (err1) {
+    // 2. Tareas que yo creé (aunque no esté asignado)
+    const { data: tareasCreadas, error: e2 } = await supabase
+      .from('tareas')
+      .select('id')
+      .eq('created_by', uid);
+    if (e2) return res.status(500).json({ error: e2.message });
 
-      console.log(err1);
+    // 3. Unir IDs sin duplicados
+    const idsAsignadas = misAsignaciones.map(a => a.tarea_id);
+    const idsCreadas   = tareasCreadas.map(t => t.id);
+    const todosIds     = [...new Set([...idsAsignadas, ...idsCreadas])];
 
-      return res.status(500).json({
-        error: err1.message
-      });
+    if (todosIds.length === 0) return res.json([]);
 
-    }
-
-    // IDS DE TAREAS
-    const ids = tareasUsuario.map(t => t.tarea_id);
-
-    if (ids.length === 0) {
-      return res.json([]);
-    }
-
-    // OBTENER INFO DE TAREAS
-    const { data: tareas, error: err2 } = await supabase
+    // 4. Detalle de cada tarea
+    const { data: tareas, error: e3 } = await supabase
       .from('tareas')
       .select('*')
-      .in('id', ids);
+      .in('id', todosIds);
+    if (e3) return res.status(500).json({ error: e3.message });
 
-    if (err2) {
+    // 5. Todos los registros de asignación para esas tareas
+    const { data: todosAsignados, error: e4 } = await supabase
+      .from('tareas_usuarios')
+      .select('tarea_id, usuario_id, estado')
+      .in('tarea_id', todosIds);
+    if (e4) return res.status(500).json({ error: e4.message });
 
-      console.log(err2);
-
-      return res.status(500).json({
-        error: err2.message
-      });
-
+    // 6. Nombres de los usuarios asignados
+    const userIds = [...new Set(todosAsignados.map(a => a.usuario_id))];
+    let userMap = {};
+    if (userIds.length > 0) {
+      const { data: usuarios } = await supabase
+        .from('users')
+        .select('id, full_name')
+        .in('id', userIds);
+      (usuarios || []).forEach(u => { userMap[u.id] = u.full_name || 'Usuario'; });
     }
 
-    // COMBINAR
-    const resultado = tareasUsuario.map(tu => {
-
-      const tarea = tareas.find(t => t.id === tu.tarea_id);
+    // 7. Construir respuesta
+    const resultado = tareas.map(tarea => {
+      const miAsignacion     = misAsignaciones.find(a => a.tarea_id === tarea.id);
+      const asignadosDeTarea = todosAsignados
+        .filter(a => a.tarea_id === tarea.id)
+        .map(a => ({ nombre: userMap[a.usuario_id] || 'Usuario', estado: a.estado }));
 
       return {
-
-        ...tu,
-        tareas: tarea
-
+        id:        miAsignacion ? miAsignacion.id : null,
+        tarea_id:  tarea.id,
+        estado:    miAsignacion ? miAsignacion.estado : null,
+        esCreador: tarea.created_by === uid,
+        tareas:    tarea,
+        asignados: asignadosDeTarea
       };
-
     });
 
     res.json(resultado);
 
-  }
-
-  catch(err) {
-
+  } catch(err) {
     console.log(err);
-
-    res.status(500).json({
-      error: 'Error al obtener tareas'
-    });
-
+    res.status(500).json({ error: 'Error al obtener tareas' });
   }
 
 });
@@ -463,11 +468,6 @@ app.post('/api/tareas', authMiddleware, async (req, res) => {
       return res.status(500).json({ error: err2.message });
     }
     targetIds = users.map(u => u.id);
-  }
-
-  // Siempre incluir al creador si no está ya en la lista
-  if (!targetIds.includes(req.user.id)) {
-    targetIds.push(req.user.id);
   }
 
   // CREAR REGISTROS INDIVIDUALES
