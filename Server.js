@@ -425,63 +425,81 @@ app.post('/api/tareas', authMiddleware, async (req, res) => {
   const {
     titulo,
     descripcion,
-    fecha_limite
+    fecha_limite,
+    asignados  // array de user IDs; si viene vacío/null => asignar a todos
   } = req.body;
 
   // CREAR TAREA
   const { data: tarea, error: err1 } = await supabase
     .from('tareas')
     .insert([{
-
       titulo,
       descripcion,
       fecha_limite,
       created_by: req.user.id
-
     }])
     .select()
     .single();
 
-  if (err1){
+  if (err1) {
     console.log('ERR1:', err1);
-    return res.status(500).json({
-      error: err1.message
-    });
-}
-  // OBTENER TODOS LOS USUARIOS
-  const { data: users, error: err2 } = await supabase
-    .from('users')
-    .select('id');
-
-  if (err2){
-    console.log('ERR2:', err2);
-    return res.status(500).json({
-      error: err2.message
-    });
+    return res.status(500).json({ error: err1.message });
   }
-  // CREAR REGISTRO INDIVIDUAL
-  const registros = users.map(u => ({
 
+  // DETERMINAR A QUIÉN ASIGNAR
+  let targetIds = [];
+
+  if (Array.isArray(asignados) && asignados.length > 0) {
+    // Asignar solo a los usuarios seleccionados
+    targetIds = asignados;
+  } else {
+    // Sin selección => asignar a todos
+    const { data: users, error: err2 } = await supabase
+      .from('users')
+      .select('id');
+
+    if (err2) {
+      console.log('ERR2:', err2);
+      return res.status(500).json({ error: err2.message });
+    }
+    targetIds = users.map(u => u.id);
+  }
+
+  // Siempre incluir al creador si no está ya en la lista
+  if (!targetIds.includes(req.user.id)) {
+    targetIds.push(req.user.id);
+  }
+
+  // CREAR REGISTROS INDIVIDUALES
+  const registros = targetIds.map(uid => ({
     tarea_id: tarea.id,
-    usuario_id: u.id,
+    usuario_id: uid,
     estado: 'no iniciada'
-
   }));
 
   const { error: err3 } = await supabase
     .from('tareas_usuarios')
     .insert(registros);
 
-  if (err3){
+  if (err3) {
     console.log('ERR3:', err3);
-    return res.status(500).json({
-      error: err3.message
-    });
-}
-  res.status(201).json({
-    success: true
-  });
+    return res.status(500).json({ error: err3.message });
+  }
 
+  res.status(201).json({ success: true });
+
+});
+
+// LISTAR TODOS LOS USUARIOS (para el selector de asignación)
+app.get('/api/users', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, full_name, email')
+    .neq('id', req.user.id)
+    .order('full_name');
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
 });
 
 // CAMBIAR ESTADO INDIVIDUAL

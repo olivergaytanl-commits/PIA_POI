@@ -94,6 +94,36 @@
                 <input type="date" id="fecha" class="form-control" required>
               </div>
 
+              <!-- ASIGNACIÓN -->
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Asignar a</label>
+                <div class="mb-2">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="modoAsignar" id="modoTodos" value="todos" checked onchange="toggleModoAsignar()">
+                    <label class="form-check-label" for="modoTodos">Todos los usuarios</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="modoAsignar" id="modoEspecifico" value="especifico" onchange="toggleModoAsignar()">
+                    <label class="form-check-label" for="modoEspecifico">Usuarios específicos</label>
+                  </div>
+                </div>
+
+                <div id="panelUsuarios" style="display:none;">
+                  <input
+                    type="text"
+                    id="buscarUsuario"
+                    class="form-control form-control-sm mb-2"
+                    placeholder="🔍 Buscar por nombre..."
+                    oninput="filtrarUsuarios()">
+                  <div
+                    id="listaUsuarios"
+                    style="max-height:180px; overflow-y:auto; border:1px solid #444; border-radius:6px; padding:6px; background:#1a1a1a;">
+                    <small class="text-muted">Cargando usuarios...</small>
+                  </div>
+                  <small class="text-muted mt-1 d-block" id="contadorSeleccionados"></small>
+                </div>
+              </div>
+
               <button type="submit" class="btn btn-success w-100">
                 Crear tarea
               </button>
@@ -308,16 +338,114 @@ async function cargarTareas() {
 // ─────────────────────────────────────
 // CREAR TAREA
 // ─────────────────────────────────────
+// ─────────────────────────────────────
+// USUARIOS PARA ASIGNACIÓN
+// ─────────────────────────────────────
+let todosLosUsuarios = [];
+let usuariosSeleccionados = new Set();
+
+async function cargarUsuariosParaAsignar() {
+  if (todosLosUsuarios.length > 0) {
+    renderListaUsuarios(todosLosUsuarios);
+    return;
+  }
+  try {
+    const res = await authFetch('/api/users');
+    if (!res.ok) return;
+    todosLosUsuarios = await res.json();
+    renderListaUsuarios(todosLosUsuarios);
+  } catch (err) {
+    console.error('Error al cargar usuarios:', err);
+  }
+}
+
+function renderListaUsuarios(lista) {
+  const container = document.getElementById('listaUsuarios');
+  if (lista.length === 0) {
+    container.innerHTML = '<small class="text-muted">No hay otros usuarios.</small>';
+    return;
+  }
+
+  container.innerHTML = lista.map(u => `
+    <div class="form-check">
+      <input
+        class="form-check-input usuario-check"
+        type="checkbox"
+        value="${u.id}"
+        id="u_${u.id}"
+        ${usuariosSeleccionados.has(u.id) ? 'checked' : ''}
+        onchange="toggleUsuario(${u.id})">
+      <label class="form-check-label" for="u_${u.id}" style="cursor:pointer;">
+        <strong>${u.full_name || '(sin nombre)'}</strong>
+        <small class="text-muted ms-1">${u.email}</small>
+      </label>
+    </div>
+  `).join('');
+
+  actualizarContador();
+}
+
+function filtrarUsuarios() {
+  const q = document.getElementById('buscarUsuario').value.toLowerCase();
+  const filtrados = todosLosUsuarios.filter(u =>
+    (u.full_name || '').toLowerCase().includes(q) ||
+    (u.email || '').toLowerCase().includes(q)
+  );
+  renderListaUsuarios(filtrados);
+}
+
+function toggleUsuario(id) {
+  if (usuariosSeleccionados.has(id)) {
+    usuariosSeleccionados.delete(id);
+  } else {
+    usuariosSeleccionados.add(id);
+  }
+  actualizarContador();
+}
+
+function actualizarContador() {
+  const el = document.getElementById('contadorSeleccionados');
+  const n = usuariosSeleccionados.size;
+  el.textContent = n === 0
+    ? 'Sin seleccionar (solo tú serás asignado)'
+    : `${n} usuario${n > 1 ? 's' : ''} seleccionado${n > 1 ? 's' : ''}`;
+}
+
+function toggleModoAsignar() {
+  const modo = document.querySelector('input[name="modoAsignar"]:checked').value;
+  const panel = document.getElementById('panelUsuarios');
+  if (modo === 'especifico') {
+    panel.style.display = 'block';
+    cargarUsuariosParaAsignar();
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+// Resetear selección al cerrar el modal
+document.getElementById('modalTarea').addEventListener('hidden.bs.modal', () => {
+  usuariosSeleccionados.clear();
+  document.getElementById('buscarUsuario').value = '';
+  document.getElementById('modoTodos').checked = true;
+  document.getElementById('panelUsuarios').style.display = 'none';
+});
+
+// ─────────────────────────────────────
+// CREAR TAREA
+// ─────────────────────────────────────
 document
   .getElementById('formTarea')
   .addEventListener('submit', async e => {
 
     e.preventDefault();
 
+    const modo = document.querySelector('input[name="modoAsignar"]:checked').value;
+
     const data = {
-      titulo:      document.getElementById('titulo').value,
-      descripcion: document.getElementById('descripcion').value,
-      fecha_limite: document.getElementById('fecha').value
+      titulo:       document.getElementById('titulo').value,
+      descripcion:  document.getElementById('descripcion').value,
+      fecha_limite: document.getElementById('fecha').value,
+      asignados:    modo === 'especifico' ? Array.from(usuariosSeleccionados) : []
     };
 
     const res = await authFetch('/api/tareas', {
@@ -331,7 +459,6 @@ document
     if (res.ok) {
 
       alert('✅ Tarea creada');
-
       document.getElementById('formTarea').reset();
 
       const modal = bootstrap.Modal.getInstance(
