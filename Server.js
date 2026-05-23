@@ -401,19 +401,25 @@ app.get('/api/tareas', authMiddleware, async (req, res) => {
     // 7. Construir respuesta
     const resultado = tareas.map(tarea => {
       const miAsignacion     = misAsignaciones.find(a => a.tarea_id === tarea.id);
+      const esCreador        = tarea.created_by === uid;
+
+      // Los asignados (no creadores) no ven tareas finalizadas
+      if (tarea.estado === 'finalizada' && !esCreador) return null;
+
       const asignadosDeTarea = todosAsignados
         .filter(a => a.tarea_id === tarea.id)
         .map(a => ({ nombre: userMap[a.usuario_id] || 'Usuario', estado: a.estado }));
 
       return {
-        id:        miAsignacion ? miAsignacion.id : null,
-        tarea_id:  tarea.id,
-        estado:    miAsignacion ? miAsignacion.estado : null,
-        esCreador: tarea.created_by === uid,
-        tareas:    tarea,
-        asignados: asignadosDeTarea
+        id:          miAsignacion ? miAsignacion.id : null,
+        tarea_id:    tarea.id,
+        estado:      miAsignacion ? miAsignacion.estado : null,
+        tareaEstado: tarea.estado,   // 'activa' | 'finalizada'
+        esCreador,
+        tareas:      tarea,
+        asignados:   asignadosDeTarea
       };
-    });
+    }).filter(Boolean);
 
     res.json(resultado);
 
@@ -487,6 +493,68 @@ app.post('/api/tareas', authMiddleware, async (req, res) => {
   }
 
   res.status(201).json({ success: true });
+
+});
+
+// FINALIZAR TAREA (solo el creador)
+app.put('/api/tareas/:tareaId/finalizar', authMiddleware, async (req, res) => {
+
+  const tareaId = parseInt(req.params.tareaId);
+  const uid     = req.user.id;
+
+  // Verificar que el usuario sea el creador
+  const { data: tarea, error: e1 } = await supabase
+    .from('tareas')
+    .select('id, created_by, estado')
+    .eq('id', tareaId)
+    .single();
+
+  if (e1 || !tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
+  if (tarea.created_by !== uid) return res.status(403).json({ error: 'No autorizado' });
+  if (tarea.estado === 'finalizada') return res.status(400).json({ error: 'La tarea ya fue finalizada' });
+
+  // Marcar tarea como finalizada
+  const { error: e2 } = await supabase
+    .from('tareas')
+    .update({ estado: 'finalizada' })
+    .eq('id', tareaId);
+  if (e2) return res.status(500).json({ error: e2.message });
+
+  // Buscar usuarios que completaron la tarea
+  const { data: completados, error: e3 } = await supabase
+    .from('tareas_usuarios')
+    .select('usuario_id')
+    .eq('tarea_id', tareaId)
+    .eq('estado', 'completada');
+  if (e3) return res.status(500).json({ error: e3.message });
+
+  // Dar 10 monedas a cada uno
+  if (completados.length > 0) {
+
+    const completedIds = completados.map(c => c.usuario_id);
+
+    const { data: existing } = await supabase
+      .from('monedas')
+      .select('usuario_id, total')
+      .in('usuario_id', completedIds);
+
+    const existingMap = {};
+    (existing || []).forEach(e => { existingMap[e.usuario_id] = e.total; });
+
+    const upserts = completedIds.map(id => ({
+      usuario_id:  id,
+      total:       (existingMap[id] || 0) + 10,
+      updated_at:  new Date().toISOString()
+    }));
+
+    const { error: e4 } = await supabase
+      .from('monedas')
+      .upsert(upserts, { onConflict: 'usuario_id' });
+    if (e4) return res.status(500).json({ error: e4.message });
+
+  }
+
+  res.json({ success: true, recompensados: completados.length });
 
 });
 

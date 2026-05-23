@@ -268,11 +268,22 @@ async function cargarTareas() {
       // Tarea creada por mí (no estoy asignado)
       if (tarea.estado === null) {
 
+        const finalizada = tarea.tareaEstado === 'finalizada';
+
+        const botonFinalizar = finalizada
+          ? `<div class="badge-finalizada">✅ Finalizada</div>`
+          : `<button
+               class="btn btn-sm btn-danger mt-2 w-100"
+               onclick="finalizarTarea(${tarea.tarea_id})">
+               Finalizar tarea
+             </button>`;
+
         div.innerHTML = `
           <strong>${tareaGlobal.titulo}</strong>
           <p>${tareaGlobal.descripcion}</p>
           <small>Fecha límite: ${new Date(tareaGlobal.fecha_limite).toLocaleDateString()}</small>
           ${chipsHTML}
+          ${botonFinalizar}
         `;
         creadasPorMi.appendChild(div);
         countCreadas++;
@@ -463,6 +474,31 @@ document
     }
 
   });
+
+// ─────────────────────────────────────
+// FINALIZAR TAREA
+// ─────────────────────────────────────
+async function finalizarTarea(tareaId) {
+
+  if (!confirm('¿Finalizar esta tarea? Se darán 10 monedas a cada usuario que la completó.')) return;
+
+  const res = await authFetch(`/api/tareas/${tareaId}/finalizar`, {
+    method: 'PUT'
+  });
+
+  const result = await res.json();
+
+  if (res.ok) {
+    const msg = result.recompensados > 0
+      ? `✅ Tarea finalizada. Se dieron 10 monedas a ${result.recompensados} usuario(s).`
+      : '✅ Tarea finalizada. Ningún usuario la había completado.';
+    alert(msg);
+    cargarTareas();
+  } else {
+    alert(result.error || 'Error al finalizar tarea');
+  }
+
+}
 
 // ─────────────────────────────────────
 // CAMBIAR ESTADO
