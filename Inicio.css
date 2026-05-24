@@ -17,6 +17,28 @@
   font-weight: bold;
 }
 
+.user-banner-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: url('tu-banner.jpg') center/cover no-repeat;
+  background-color: #2e4330; /* respaldo si no hay imagen */
+  color: white;
+  font-weight: bold;
+  min-width: 120px;
+}
+
+.nav-avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+  flex-shrink: 0;
+}
+
 hr{
     margin: 0;
 }

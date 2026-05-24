@@ -42,10 +42,11 @@ Filtros
 
 </div>
           
-<div class="nav-right d-flex align-items-center gap-2">
-    <img id="navAvatar" src="perfil.jpg" 
-         style="width:35px; height:35px; border-radius:50%; object-fit:cover;">
-    <span id="navNombre" style="color:white; font-weight:bold;"></span>
+<div class="nav-right">
+    <div class="user-banner-card" id="userBannerCard">
+        <img id="navAvatar" src="perfil.jpg" class="nav-avatar">
+        <span id="navNombre">Usuario</span>
+    </div>
 </div>
 
 </nav>
@@ -89,6 +90,11 @@ Filtros
         document.getElementById('navNombre').textContent = currentUser.full_name;
         if (currentUser.img_profile) {
             document.getElementById('navAvatar').src = currentUser.img_profile;
+        }
+        //Se agrega el banner
+        if (currentUser.banner_url) {
+        document.getElementById('userBannerCard').style.backgroundImage = 
+            `url('${currentUser.banner_url}')`;
         }
     }
 
