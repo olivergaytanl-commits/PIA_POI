@@ -746,6 +746,165 @@ app.put('/api/tareas/:id', authMiddleware, async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+//  TIENDA
+// ══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/tienda/cosmeticos — catálogo completo (con flag "lo tengo")
+app.get('/api/tienda/cosmeticos', authMiddleware, async (req, res) => {
+  const uid = req.user.id;
+
+  // Todos los cosméticos activos
+  const { data: catalogo, error: e1 } = await supabase
+    .from('cosmeticos')
+    .select('*')
+    .eq('activo', true)
+    .order('precio', { ascending: true });
+
+  if (e1) return res.status(500).json({ error: e1.message });
+
+  // Inventario del usuario
+  const { data: inv } = await supabase
+    .from('inventario_usuario')
+    .select('cosmetico_id')
+    .eq('usuario_id', uid);
+
+  const tengoIds = new Set((inv || []).map(i => i.cosmetico_id));
+
+  // Banner equipado
+  const { data: userData } = await supabase
+    .from('users')
+    .select('banner_equipado_id, banner_url')
+    .eq('id', uid)
+    .single();
+
+  const equipadoId = userData?.banner_equipado_id || null;
+
+  const resultado = catalogo.map(c => ({
+    ...c,
+    tengo:    tengoIds.has(c.id),
+    equipado: c.id === equipadoId
+  }));
+
+  res.json({ cosmeticos: resultado, banner_url: userData?.banner_url || null });
+});
+
+// GET /api/usuarios/monedas — monedas del usuario actual
+app.get('/api/usuarios/monedas', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from('monedas')
+    .select('total')
+    .eq('usuario_id', req.user.id)
+    .single();
+
+  if (error) return res.json({ monedas: 0 });
+  res.json({ monedas: data?.total || 0 });
+});
+
+// POST /api/tienda/comprar — comprar un cosmético
+app.post('/api/tienda/comprar', authMiddleware, async (req, res) => {
+  const uid          = req.user.id;
+  const { cosmetico_id } = req.body;
+  if (!cosmetico_id) return res.status(400).json({ error: 'cosmetico_id requerido' });
+
+  // Verificar que el cosmético existe
+  const { data: cosm, error: e1 } = await supabase
+    .from('cosmeticos')
+    .select('id, precio')
+    .eq('id', cosmetico_id)
+    .eq('activo', true)
+    .single();
+
+  if (e1 || !cosm) return res.status(404).json({ error: 'Cosmético no encontrado' });
+
+  // Verificar que no lo tenga ya
+  const { data: yaLo } = await supabase
+    .from('inventario_usuario')
+    .select('id')
+    .eq('usuario_id', uid)
+    .eq('cosmetico_id', cosmetico_id)
+    .single();
+
+  if (yaLo) return res.status(409).json({ error: 'Ya tienes este cosmético' });
+
+  // Verificar monedas
+  const { data: monedasRow } = await supabase
+    .from('monedas')
+    .select('total')
+    .eq('usuario_id', uid)
+    .single();
+
+  const saldo = monedasRow?.total || 0;
+  if (saldo < cosm.precio)
+    return res.status(400).json({ error: 'Monedas insuficientes' });
+
+  // Descontar monedas
+  const { error: e2 } = await supabase
+    .from('monedas')
+    .upsert({ usuario_id: uid, total: saldo - cosm.precio, updated_at: new Date().toISOString() },
+            { onConflict: 'usuario_id' });
+
+  if (e2) return res.status(500).json({ error: e2.message });
+
+  // Agregar al inventario
+  const { error: e3 } = await supabase
+    .from('inventario_usuario')
+    .insert([{ usuario_id: uid, cosmetico_id }]);
+
+  if (e3) return res.status(500).json({ error: e3.message });
+
+  res.json({ success: true, monedas_restantes: saldo - cosm.precio });
+});
+
+// POST /api/tienda/equipar — equipar un banner
+app.post('/api/tienda/equipar', authMiddleware, async (req, res) => {
+  const uid = req.user.id;
+  const { cosmetico_id } = req.body;
+  if (!cosmetico_id) return res.status(400).json({ error: 'cosmetico_id requerido' });
+
+  // Verificar que lo tenga en el inventario
+  const { data: enInv } = await supabase
+    .from('inventario_usuario')
+    .select('id')
+    .eq('usuario_id', uid)
+    .eq('cosmetico_id', cosmetico_id)
+    .single();
+
+  if (!enInv) return res.status(403).json({ error: 'No tienes este cosmético en tu inventario' });
+
+  // Obtener la URL del cosmético
+  const { data: cosm } = await supabase
+    .from('cosmeticos')
+    .select('img_url')
+    .eq('id', cosmetico_id)
+    .single();
+
+  // Actualizar en users
+  const { error } = await supabase
+    .from('users')
+    .update({ banner_equipado_id: cosmetico_id, banner_url: cosm?.img_url || null })
+    .eq('id', uid);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({ success: true, banner_url: cosm?.img_url || null });
+});
+
+// POST /api/tienda/cosmeticos — agregar cosmético al catálogo
+app.post('/api/tienda/cosmeticos', authMiddleware, async (req, res) => {
+  const { nombre, descripcion, img_url, precio, tipo } = req.body;
+  if (!nombre || !img_url) return res.status(400).json({ error: 'nombre e img_url son requeridos' });
+
+  const { data, error } = await supabase
+    .from('cosmeticos')
+    .insert([{ nombre, descripcion, img_url, precio: precio || 0, tipo: tipo || 'banner' }])
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 //  START
 // ══════════════════════════════════════════════════════════════════════════════
 server.listen(PORT, () => {
