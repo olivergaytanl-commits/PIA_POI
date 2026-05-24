@@ -18,25 +18,30 @@
 }
 
 .user-banner-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  background: url('tu-banner.jpg') center/cover no-repeat;
-  background-color: #2e4330; /* respaldo si no hay imagen */
-  color: white;
-  font-weight: bold;
-  min-width: 120px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px 6px 6px;
+    border-radius: 40px;
+    background-color: #1a1a2e;
+    background-size: cover;
+    background-position: center;
+    color: white;
+    font-weight: bold;
+    font-size: 15px;
+    min-width: 180px;
+    height: 48px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .nav-avatar {
-  width: 35px;
-  height: 35px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid white;
-  flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid white;
+    flex-shrink: 0;
 }
 
 hr{
