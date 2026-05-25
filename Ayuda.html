@@ -49,8 +49,8 @@
 
 <hr>
 
-<li><a href="InicioS.html">Iniciar sesión</a></li>
-<li><a href="#">Cerrar sesión</a></li>
+<li id="li-login"><a href="InicioS.html">Iniciar sesión</a></li>
+<li id="li-logout"><a onclick="logout()" style="cursor:pointer;">Cerrar sesión</a></li>
 
 </ul>
 
@@ -115,7 +115,7 @@ También podrás agregar títulos o diseños que aún están en desarrollo.
 
 <script>
 // ── Sidebar: sesión ───────────────────────────────────────
-(function() {
+document.addEventListener('DOMContentLoaded', function() {
     const token = localStorage.getItem('token');
     const liLogin  = document.getElementById('li-login');
     const liLogout = document.getElementById('li-logout');
@@ -125,7 +125,7 @@ También podrás agregar títulos o diseños que aún están en desarrollo.
     } else {
         if (liLogout) liLogout.style.display = 'none';
     }
-})();
+});
 
 function logout() {
     const token = localStorage.getItem('token');

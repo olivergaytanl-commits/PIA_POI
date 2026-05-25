@@ -287,17 +287,17 @@ function logout() {
     window.location.href = 'InicioS.html';
 }
 
+document.addEventListener('DOMContentLoaded', function() {
     // Control sidebar sesión
-    (function() {
-        const liLogin  = document.getElementById('li-login');
-        const liLogout = document.getElementById('li-logout');
-        if (localStorage.getItem('token')) {
-            if (liLogin)  liLogin.style.display  = 'none';
-            if (liLogout) liLogout.style.display = '';
-        } else {
-            if (liLogout) liLogout.style.display = 'none';
-        }
-    })();
+    const liLogin  = document.getElementById('li-login');
+    const liLogout = document.getElementById('li-logout');
+    if (localStorage.getItem('token')) {
+        if (liLogin)  liLogin.style.display  = 'none';
+        if (liLogout) liLogout.style.display = '';
+    } else {
+        if (liLogout) liLogout.style.display = 'none';
+    }
+});
 
 
 function authFetch(url, opts = {}) {
