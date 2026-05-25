@@ -130,27 +130,11 @@ class VideoCallManager {
         
         this.configuration = {
             iceServers: [
-                { urls: 'stun:stun.relay.metered.ca:80' },
-                {
-                    urls: 'turn:global.relay.metered.ca:80',
-                    username: '9f4e271e08ea6740306b75a9',
-                    credential: 'TYOXGgRZdHOOdwu4'
-                },
-                {
-                    urls: 'turn:global.relay.metered.ca:80?transport=tcp',
-                    username: '9f4e271e08ea6740306b75a9',
-                    credential: 'TYOXGgRZdHOOdwu4'
-                },
-                {
-                    urls: 'turn:global.relay.metered.ca:443',
-                    username: '9f4e271e08ea6740306b75a9',
-                    credential: 'TYOXGgRZdHOOdwu4'
-                },
-                {
-                    urls: 'turns:global.relay.metered.ca:443?transport=tcp',
-                    username: '9f4e271e08ea6740306b75a9',
-                    credential: 'TYOXGgRZdHOOdwu4'
-                }
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
             ]
         };
     }
@@ -189,6 +173,24 @@ class VideoCallManager {
         
         // Crear conexión peer
         this.peerConnection = new RTCPeerConnection(this.configuration);
+
+        // Estado de la conexión (callee)
+        this.peerConnection.onconnectionstatechange = () => {
+            console.log(`🔌 [CALLEE] Estado conexión: ${this.peerConnection.connectionState}`);
+            if (this.peerConnection.connectionState === 'failed') {
+                console.error('❌ [CALLEE] Conexión fallida');
+                this.endCall();
+            }
+        };
+
+        // Estado ICE (callee)
+        this.peerConnection.oniceconnectionstatechange = () => {
+            console.log(`🧊 [CALLEE] ICE state: ${this.peerConnection.iceConnectionState}`);
+        };
+
+        this.peerConnection.onicegatheringstatechange = () => {
+            console.log(`🧊 [CALLEE] ICE gathering: ${this.peerConnection.iceGatheringState}`);
+        };
         
         // Añadir stream local
         this.localStream.getTracks().forEach(track => {
@@ -220,13 +222,21 @@ class VideoCallManager {
         
         // Estado de la conexión
         this.peerConnection.onconnectionstatechange = () => {
-            console.log(`🔌 Estado conexión: ${this.peerConnection.connectionState}`);
+            console.log(`🔌 [CALLER] Estado conexión: ${this.peerConnection.connectionState}`);
             if (this.peerConnection.connectionState === 'connected') {
                 console.log('✅ Conexión establecida exitosamente!');
             } else if (this.peerConnection.connectionState === 'failed') {
-                console.error('❌ Conexión fallida');
+                console.error('❌ [CALLER] Conexión fallida');
                 this.endCall();
             }
+        };
+
+        this.peerConnection.oniceconnectionstatechange = () => {
+            console.log(`🧊 [CALLER] ICE state: ${this.peerConnection.iceConnectionState}`);
+        };
+
+        this.peerConnection.onicegatheringstatechange = () => {
+            console.log(`🧊 [CALLER] ICE gathering: ${this.peerConnection.iceGatheringState}`);
         };
         
         try {
@@ -259,6 +269,24 @@ class VideoCallManager {
         
         // Crear conexión peer
         this.peerConnection = new RTCPeerConnection(this.configuration);
+
+        // Estado de la conexión (callee)
+        this.peerConnection.onconnectionstatechange = () => {
+            console.log(`🔌 [CALLEE] Estado conexión: ${this.peerConnection.connectionState}`);
+            if (this.peerConnection.connectionState === 'failed') {
+                console.error('❌ [CALLEE] Conexión fallida');
+                this.endCall();
+            }
+        };
+
+        // Estado ICE (callee)
+        this.peerConnection.oniceconnectionstatechange = () => {
+            console.log(`🧊 [CALLEE] ICE state: ${this.peerConnection.iceConnectionState}`);
+        };
+
+        this.peerConnection.onicegatheringstatechange = () => {
+            console.log(`🧊 [CALLEE] ICE gathering: ${this.peerConnection.iceGatheringState}`);
+        };
         
         // Añadir stream local
         this.localStream.getTracks().forEach(track => {
