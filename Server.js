@@ -305,6 +305,94 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
   res.status(201).json(data);
 });
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  CHATS GRUPALES
+// ══════════════════════════════════════════════════════════════════════════════
+app.get('/api/groups', authMiddleware, async (req, res) => {
+  const { data: miembros } = await supabase
+    .from('grupo_miembros')
+    .select('grupo_id')
+    .eq('usuario_id', req.user.id);
+
+  const ids = (miembros || []).map(x => x.grupo_id);
+  if (!ids.length) return res.json([]);
+
+  const { data, error } = await supabase
+    .from('grupos')
+    .select('*')
+    .in('id', ids)
+    .order('created_at', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.post('/api/groups', authMiddleware, async (req, res) => {
+  const { nombre, miembros } = req.body;
+
+  if (!nombre || !miembros || miembros.length < 2) {
+    return res.status(400).json({ error: 'Selecciona mínimo 2 amigos' });
+  }
+
+  const { data: grupo, error: groupError } = await supabase
+    .from('grupos')
+    .insert([{ nombre, creador_id: req.user.id }])
+    .select()
+    .single();
+
+  if (groupError) {
+    return res.status(500).json({ error: groupError.message });
+  }
+
+  const ids = [...new Set([req.user.id, ...miembros.map(Number)])];
+
+  const inserts = ids.map(id => ({
+    grupo_id: grupo.id,
+    usuario_id: id
+  }));
+
+  const { error: memError } = await supabase
+    .from('grupo_miembros')
+    .insert(inserts);
+
+  if (memError) {
+    return res.status(500).json({ error: memError.message });
+  }
+
+  res.status(201).json(grupo);
+});
+
+app.get('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from('mensajes_grupo')
+    .select('*')
+    .eq('grupo_id', req.params.groupId)
+    .order('created_at', { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.post('/api/group-messages', authMiddleware, async (req, res) => {
+  const { grupo_id, mensaje } = req.body;
+
+  const { data, error } = await supabase
+    .from('mensajes_grupo')
+    .insert([{
+      grupo_id,
+      usuario_id: req.user.id,
+      username: req.user.full_name,
+      mensaje
+    }])
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  PUBLICACIONES
 // ══════════════════════════════════════════════════════════════════════════════

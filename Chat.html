@@ -114,6 +114,8 @@ const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let currentUser  = null;
 let token        = null;
 let activeFriend = null;
+let activeGroup = null;
+let activeChatType = 'privado';
 let realtimeSub  = null;
 let socket       = null;
 let videoCallManager = null;
@@ -521,13 +523,19 @@ function setupVideoControls() {
 async function cargarAmigos() {
     const res = await authFetch('/api/friends');
     const lista = await res.json();
+
+    const gruposRes = await authFetch('/api/groups');
+    const grupos = await gruposRes.json();
+
     const cont = document.getElementById('listaAmigos');
     cont.innerHTML = '';
 
-    if (!lista.length) {
-        cont.innerHTML = '<div class="user" style="margin-top: 20px;"></div><p class="sin-amigos" style="color: white; text-align: center;">Busca usuarios<br>y agrégalos</p>';
-        return;
-    }
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-success';
+    btn.style.margin = '10px';
+    btn.innerHTML = '➕ Nuevo grupo';
+    btn.onclick = crearGrupo;
+    cont.appendChild(btn);
 
     lista.forEach(u => {
         const div = document.createElement('div');
@@ -539,7 +547,28 @@ async function cargarAmigos() {
         div.style.justifyContent = 'center';
         div.style.background = '#2b3a4f';
         div.innerHTML = `${iniciales(u.full_name)}`;
-        div.onclick = (e) => abrirChat(u, div);
+        div.onclick = () => abrirChat(u, div);
+        cont.appendChild(div);
+    });
+
+    if (grupos.length) {
+        const hr = document.createElement('hr');
+        hr.style.border = '1px solid white';
+        hr.style.margin = '10px';
+        cont.appendChild(hr);
+    }
+
+    grupos.forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'user';
+        div.title = g.nombre;
+        div.style.cursor = 'pointer';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.justifyContent = 'center';
+        div.style.background = '#446447';
+        div.innerHTML = '👥';
+        div.onclick = () => abrirGrupo(g, div);
         cont.appendChild(div);
     });
 }
@@ -622,6 +651,37 @@ async function abrirChat(friend, el) {
     suscribirRealtime();
 }
 
+
+async function abrirGrupo(group, el) {
+    activeChatType = 'grupo';
+    activeGroup = group;
+    activeFriend = null;
+
+    document.getElementById('chatHeader').innerHTML = `
+        <div class="avatar" style="background:#446447; display:flex; align-items:center; justify-content:center; color:white;">👥</div>
+        <div>
+            <strong>${group.nombre}</strong>
+            <p class="online">Grupo</p>
+        </div>`;
+
+    document.querySelectorAll('.user').forEach(i => i.classList.remove('activo'));
+    if (el) el.classList.add('activo');
+
+    const res = await authFetch(`/api/groups/${group.id}/messages`);
+    const msgs = await res.json();
+
+    const cont = document.getElementById('chatMessages');
+    cont.innerHTML = '';
+
+    msgs.forEach(m => agregarBurbuja({
+        username: m.username,
+        message: m.mensaje,
+        created_at: m.created_at
+    }));
+
+    suscribirRealtimeGrupo();
+}
+
 async function startVideoCall() {
     if (!activeFriend) {
         alert('Selecciona un contacto primero');
@@ -674,13 +734,25 @@ function agregarBurbuja(m) {
 }
 
 async function enviarMensaje() {
-    if (!activeFriend) return;
+    if (!activeFriend && activeChatType==='privado') return;
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
     if (!text) return;
 
     input.value = '';
     input.focus();
+
+    if (activeChatType === 'grupo') {
+        await authFetch('/api/group-messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                grupo_id: activeGroup.id,
+                mensaje: text
+            })
+        });
+        return;
+    }
 
     await authFetch('/api/messages', {
         method: 'POST',
@@ -713,6 +785,54 @@ function suscribirRealtime() {
             agregarBurbuja(payload.new);
         })
         .subscribe();
+}
+
+
+function suscribirRealtimeGrupo() {
+    if (realtimeSub) sbClient.removeChannel(realtimeSub);
+
+    realtimeSub = sbClient
+        .channel('grupo-' + activeGroup.id)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'mensajes_grupo',
+            filter: `grupo_id=eq.${activeGroup.id}`
+        }, payload => {
+            agregarBurbuja({
+                username: payload.new.username,
+                message: payload.new.mensaje,
+                created_at: payload.new.created_at
+            });
+        })
+        .subscribe();
+}
+
+async function crearGrupo() {
+    const res = await authFetch('/api/friends');
+    const amigos = await res.json();
+
+    const nombre = prompt('Nombre del grupo');
+    if (!nombre) return;
+
+    const ids = prompt(amigos.map(a => `${a.id} - ${a.full_name}`).join('\n') + '\n\nEscribe IDs separados por coma');
+    if (!ids) return;
+
+    const miembros = ids.split(',').map(x => Number(x.trim())).filter(Boolean);
+
+    if (miembros.length < 2) {
+        alert('Debes seleccionar mínimo 2 amigos (3 personas contigo)');
+        return;
+    }
+
+    await authFetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, miembros })
+    });
+
+    alert('Grupo creado');
+    cargarAmigos();
 }
 
 function authFetch(url, opts = {}) {
@@ -785,7 +905,7 @@ async function enviarImagen(input) {
 }
 
 async function enviarUbicacion() {
-    if (!activeFriend) return;
+    if (!activeFriend && activeChatType==='privado') return;
     document.getElementById('clipMenu').style.display = 'none';
 
     if (!navigator.geolocation) { alert('Tu navegador no soporta geolocalización'); return; }
