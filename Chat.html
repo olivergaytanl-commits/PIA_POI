@@ -46,14 +46,9 @@
 
         <!-- INPUT -->
         <div class="chat-input">
-        <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="enviarImagen(this)">
-        <div class="clip-menu" id="clipMenu" style="display:none;">
-            <button onclick="document.getElementById('fileInput').click()">🖼️ Imagen</button>
-            <button onclick="enviarUbicacion()">📍 Ubicación</button>
-        </div>
-        <button class="btn btn-outline-secondary" onclick="toggleClipMenu()">📎</button>
-        <input type="text" id="msgInput" placeholder="mensaje..." onkeydown="enterEnviar(event)">
-        <button onclick="enviarMensaje()">Enviar</button>
+            <button class="btn btn-outline-secondary">📎</button>
+            <input type="text" id="msgInput" placeholder="mensaje..." onkeydown="enterEnviar(event)">
+            <button onclick="enviarMensaje()">Enviar</button>
         </div>
 
     </div>
@@ -650,24 +645,9 @@ function agregarBurbuja(m) {
     const esMio = m.username === currentUser.full_name;
     const div = document.createElement('div');
     div.className = 'message ' + (esMio ? 'propio' : 'ajeno');
-
-    let contenido = '';
-    if (m.message.startsWith('[img]')) {
-        const url = m.message.slice(5);
-        contenido = `<img src="${url}" style="max-width:220px; border-radius:8px; display:block; cursor:pointer;" onclick="window.open('${url}','_blank')">`;
-    } else if (m.message.startsWith('[loc]')) {
-        const coords = m.message.slice(5);
-        const [lat, lng] = coords.split(',');
-        contenido = `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" style="color:inherit;">
-            📍 Ver ubicación en Maps
-        </a>`;
-    } else {
-        contenido = `<span>${escapeHtml(m.message)}</span>`;
-    }
-
     div.innerHTML = `
         ${!esMio ? `<span class="msg-autor" style="font-size:12px;">${m.username}</span><br>` : ''}
-        ${contenido}
+        <span>${escapeHtml(m.message)}</span>
         <div class="msg-hora" style="font-size:10px; margin-top:5px;">${formatHora(m.created_at)}</div>`;
     cont.appendChild(div);
     cont.scrollTop = cont.scrollHeight;
@@ -741,65 +721,6 @@ function formatHora(ts) {
     if (!ts) return '';
     return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }
-</script>
-
-<script>
-
-function toggleClipMenu() {
-    const menu = document.getElementById('clipMenu');
-    menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
-}
-
-// Cierra el menú si se hace click fuera
-document.addEventListener('click', e => {
-    if (!e.target.closest('.chat-input'))
-        document.getElementById('clipMenu').style.display = 'none';
-});
-
-async function enviarImagen(input) {
-    if (!activeFriend || !input.files[0]) return;
-    document.getElementById('clipMenu').style.display = 'none';
-
-    const file = input.files[0];
-    const ext  = file.name.split('.').pop();
-    const path = `chat/${Date.now()}_${currentUser.id}.${ext}`;
-
-    // Subir a Supabase Storage (bucket: "chat-media")
-    const { error: upErr } = await sbClient.storage
-        .from('chat-media')
-        .upload(path, file, { upsert: true });
-
-    if (upErr) { alert('Error al subir imagen'); return; }
-
-    const { data: urlData } = sbClient.storage
-        .from('chat-media')
-        .getPublicUrl(path);
-
-    await authFetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to_user_id: activeFriend.id, message: `[img]${urlData.publicUrl}` })
-    });
-
-    input.value = '';
-}
-
-async function enviarUbicacion() {
-    if (!activeFriend) return;
-    document.getElementById('clipMenu').style.display = 'none';
-
-    if (!navigator.geolocation) { alert('Tu navegador no soporta geolocalización'); return; }
-
-    navigator.geolocation.getCurrentPosition(async pos => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        await authFetch('/api/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to_user_id: activeFriend.id, message: `[loc]${lat},${lng}` })
-        });
-    }, () => alert('No se pudo obtener la ubicación'));
-}
-
 </script>
 
 </body>
