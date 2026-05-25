@@ -311,5 +311,32 @@ Filtros
     cargarPublicaciones();
 </script>
 
+
+<script>
+// ── Sidebar: sesión ───────────────────────────────────────
+(function() {
+    const token = localStorage.getItem('token');
+    const liLogin  = document.getElementById('li-login');
+    const liLogout = document.getElementById('li-logout');
+    if (token) {
+        if (liLogin)  liLogin.style.display  = 'none';
+        if (liLogout) liLogout.style.display = '';
+    } else {
+        if (liLogout) liLogout.style.display = 'none';
+    }
+})();
+
+function logout() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        fetch('/api/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token }
+        }).catch(() => {});
+    }
+    localStorage.clear();
+    window.location.href = 'InicioS.html';
+}
+</script>
 </body>
 </html>

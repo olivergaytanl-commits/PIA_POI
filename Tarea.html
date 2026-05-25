@@ -47,8 +47,8 @@
       <li><a href="Perfil.html">Perfil</a></li>
       <li><a href="Ayuda.html">Ayuda</a></li>
       <hr>
-      <li><a href="InicioS.html">Iniciar sesión</a></li>
-      <li><a onclick="logout()">Cerrar sesión</a></li>
+      <li id="li-login"><a href="InicioS.html">Iniciar sesión</a></li>
+      <li id="li-logout"><a onclick="logout()" style="cursor:pointer;">Cerrar sesión</a></li>
     </ul>
 
   </aside>
@@ -188,6 +188,19 @@ let currentUser = null;
 window.addEventListener('DOMContentLoaded', () => {
 
   token = localStorage.getItem('token');
+
+    // Control sidebar sesión
+    (function() {
+        const liLogin  = document.getElementById('li-login');
+        const liLogout = document.getElementById('li-logout');
+        if (localStorage.getItem('token')) {
+            if (liLogin)  liLogin.style.display  = 'none';
+            if (liLogout) liLogout.style.display = '';
+        } else {
+            if (liLogout) liLogout.style.display = 'none';
+        }
+    })();
+
 
   currentUser = JSON.parse(
     localStorage.getItem('user') || 'null'

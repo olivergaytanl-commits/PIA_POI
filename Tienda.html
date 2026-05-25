@@ -201,8 +201,8 @@
       <li><a href="Tienda.html">Tienda</a></li>
       <li><a href="Ayuda.html">Ayuda</a></li>
       <hr>
-      <li><a href="InicioS.html">Iniciar sesión</a></li>
-      <li><a id="logoutBtn" style="cursor:pointer;">Cerrar sesión</a></li>
+      <li id="li-login"><a href="InicioS.html">Iniciar sesión</a></li>
+      <li id="li-logout"><a onclick="logout()" style="cursor:pointer;">Cerrar sesión</a></li>
     </ul>
   </aside>
 
@@ -280,10 +280,25 @@ if (currentUser) {
   if (currentUser.img_profile)
     document.getElementById('navAvatar').src = currentUser.img_profile;
 }
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  localStorage.clear();
-  window.location.href = 'InicioS.html';
-});
+function logout() {
+    const t = localStorage.getItem('token');
+    if (t) fetch('/api/logout', { method:'POST', headers:{'Authorization':'Bearer '+t} }).catch(()=>{});
+    localStorage.clear();
+    window.location.href = 'InicioS.html';
+}
+
+    // Control sidebar sesión
+    (function() {
+        const liLogin  = document.getElementById('li-login');
+        const liLogout = document.getElementById('li-logout');
+        if (localStorage.getItem('token')) {
+            if (liLogin)  liLogin.style.display  = 'none';
+            if (liLogout) liLogout.style.display = '';
+        } else {
+            if (liLogout) liLogout.style.display = 'none';
+        }
+    })();
+
 
 function authFetch(url, opts = {}) {
   return fetch(url, {
