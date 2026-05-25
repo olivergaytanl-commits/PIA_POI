@@ -116,9 +116,6 @@
     return colores[cat] || '#72A877'; // verde por default
     }
 
-    /* ── Filtro activo ── */
-    let categoriaActiva = '';
-
     /* ── Cargar y renderizar publicaciones ── */
     async function cargarPublicaciones(titulo = '', categoria = '') {
         const feed = document.getElementById('feed');
@@ -327,19 +324,23 @@
     });
 }
 
-    /* ── Buscar ── */
-    function buscar() {
-        const titulo = document.getElementById('buscarInput').value;
-        cargarPublicaciones(titulo, categoriaActiva);
-    }
-
-    function aplicarFiltro(categoria, el) {
-        categoriaActiva = categoria;
-        document.getElementById('filtroTexto').textContent = categoria || 'Filtros';
-        buscar();
-    }
-
     cargarPublicaciones();
+</script>
+
+<script>
+// ── Búsqueda y filtros (scope global) ────────────────────
+var categoriaActiva = '';
+
+function buscar() {
+    var titulo = document.getElementById('buscarInput').value;
+    cargarPublicaciones(titulo, categoriaActiva);
+}
+
+function aplicarFiltro(categoria) {
+    categoriaActiva = categoria;
+    document.getElementById('filtroTexto').textContent = categoria || 'Filtros';
+    buscar();
+}
 </script>
 
 
