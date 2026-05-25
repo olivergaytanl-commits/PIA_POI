@@ -58,11 +58,8 @@
         🪙 <span id="totalMonedas">0</span> monedas
       </div>
 
-      <!-- LOGROS -->
-      <div class="logros">
-        <h3>🏆 Logros Desbloqueados</h3>
-        <p>Aún no has desbloqueado logros nuevos, ¡interactúa con la app!</p>
-      </div>
+      <!-- ══ LOGROS (panel dinámico) ══ -->
+      <div id="panel-logros" style="margin: 20px 0;"></div>
 
       <!-- VISTA: solo lectura -->
       <div id="vistaInfo">
@@ -96,7 +93,6 @@
           <label style="font-size:0.78rem;color:#888;display:block;margin-bottom:6px;">
             Foto de perfil
           </label>
-          <!-- Foto preview clickeable -->
           <div class="foto-wrapper" onclick="document.getElementById('inputFoto').click()" title="Cambiar foto">
             <div id="previewFotoEdit" class="foto-placeholder">👤</div>
             <div class="foto-overlay">📷<br>Cambiar</div>
@@ -149,12 +145,15 @@
 
 </div>
 
+<!-- Sistema de logros -->
+<script src="Logros.js"></script>
+
 <script>
 
 const BASE = 'https://pia-poi-cmdb.onrender.com';
 let token = null;
-let fotoBase64 = null;   // imagen nueva seleccionada (base64)
-let fotoActual = null;   // URL o base64 ya guardada
+let fotoBase64 = null;
+let fotoActual = null;
 
 // ─────────────────────────────────────
 // INIT
@@ -163,21 +162,23 @@ window.addEventListener('DOMContentLoaded', () => {
 
   token = localStorage.getItem('token');
 
-    // Control sidebar sesión
-    (function() {
-        const liLogin  = document.getElementById('li-login');
-        const liLogout = document.getElementById('li-logout');
-        if (localStorage.getItem('token')) {
-            if (liLogin)  liLogin.style.display  = 'none';
-            if (liLogout) liLogout.style.display = '';
-        } else {
-            if (liLogout) liLogout.style.display = 'none';
-        }
-    })();
+  (function() {
+    const liLogin  = document.getElementById('li-login');
+    const liLogout = document.getElementById('li-logout');
+    if (localStorage.getItem('token')) {
+      if (liLogin)  liLogin.style.display  = 'none';
+      if (liLogout) liLogout.style.display = '';
+    } else {
+      if (liLogout) liLogout.style.display = 'none';
+    }
+  })();
 
   if (!token) { window.location.href = 'InicioS.html'; return; }
 
   cargarPerfil();
+
+  // Cargar panel de logros
+  renderPanelLogros('#panel-logros');
 
   document.getElementById('editPasswordNueva').addEventListener('input', e => {
     const wrap = document.getElementById('confirmarNuevaWrap');
@@ -205,7 +206,6 @@ function renderAvatar(contenedorId, src) {
   if (src) {
     cont.outerHTML = `<img id="${contenedorId}" src="${src}" class="foto-perfil" alt="Foto de perfil">`;
   } else {
-    // Si no tiene foto, deja el placeholder
     cont.innerHTML = '👤';
     cont.className = 'foto-placeholder';
   }
@@ -225,14 +225,10 @@ async function cargarPerfil() {
   document.getElementById('verEmail').textContent     = user.email     || '—';
   document.getElementById('totalMonedas').textContent = user.monedas  ?? 0;
 
-  // Pre-rellenar campos de edición
   document.getElementById('editNombre').value = user.full_name || '';
   document.getElementById('editEmail').value  = user.email     || '';
 
-  // Guardar foto actual
   fotoActual = user.img_profile || null;
-
-  // Mostrar foto en vista solo-lectura
   renderAvatar('fotoPerfil', fotoActual);
 
 }
@@ -244,7 +240,6 @@ function previsualizarFoto(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  // Validar tamaño: máximo 1 MB (base64 ~1.3× el original)
   if (file.size > 1 * 1024 * 1024) {
     alert('La imagen debe pesar menos de 1 MB.');
     event.target.value = '';
@@ -253,8 +248,7 @@ function previsualizarFoto(event) {
 
   const reader = new FileReader();
   reader.onload = e => {
-    fotoBase64 = e.target.result;          // data:image/...;base64,...
-    // Mostrar preview en modo edición
+    fotoBase64 = e.target.result;
     const preview = document.getElementById('previewFotoEdit');
     if (preview.tagName === 'IMG') {
       preview.src = fotoBase64;
@@ -276,11 +270,9 @@ function activarEdicion() {
   document.getElementById('editPasswordConfirm').value = '';
   document.getElementById('confirmarNuevaWrap').classList.add('d-none');
 
-  // Resetear foto nueva
   fotoBase64 = null;
   document.getElementById('inputFoto').value = '';
 
-  // Mostrar foto actual en el editor
   const preview = document.getElementById('previewFotoEdit');
   if (fotoActual) {
     if (preview.tagName === 'IMG') {
@@ -329,8 +321,6 @@ async function guardarPerfil() {
   };
 
   if (new_password) body.new_password = new_password;
-
-  // Incluir foto solo si el usuario seleccionó una nueva
   if (fotoBase64) body.img_profile = fotoBase64;
 
   const res = await authFetch('/api/me', {
@@ -346,7 +336,6 @@ async function guardarPerfil() {
     return;
   }
 
-  // Actualizar localStorage
   localStorage.setItem('token', result.token);
   localStorage.setItem('user', JSON.stringify(result.user));
 

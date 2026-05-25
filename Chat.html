@@ -12,12 +12,10 @@
 
 <nav class="navbar">
     <a href="Inicio.html" class="sesion nav-left">BetGol ⚽</a>
-
     <div class="Busqueda">
         <input type="text" id="buscarInput" class="form-control nav-center" placeholder="Ingrese el usuario que desea buscar aquí">
         <button class="btn btn-outline-success nav-center" onclick="buscarUsuario()">Buscar</button>
     </div>
-
     <button class="sesion nav-right btn-logout" onclick="logout()">Salir 🚪</button>
 </nav>
 
@@ -68,15 +66,9 @@
             <video id="localVideo" autoplay muted playsinline class="local-video"></video>
         </div>
         <div class="video-controls">
-            <button id="toggleMicBtn" class="video-control-btn">
-                🎤 Micrófono
-            </button>
-            <button id="toggleVideoBtn" class="video-control-btn">
-                📷 Cámara
-            </button>
-            <button id="endCallBtn" class="video-control-btn hangup-btn">
-                🔴 Colgar
-            </button>
+            <button id="toggleMicBtn" class="video-control-btn">🎤 Micrófono</button>
+            <button id="toggleVideoBtn" class="video-control-btn">📷 Cámara</button>
+            <button id="endCallBtn" class="video-control-btn hangup-btn">🔴 Colgar</button>
         </div>
     </div>
 </div>
@@ -84,9 +76,7 @@
 <!-- NOTIFICACIÓN DE LLAMADA ENTRANTE -->
 <div id="incomingCallNotification" class="incoming-call" style="display: none;">
     <div class="incoming-call-content">
-        <div class="incoming-call-header">
-            <span>📞 Llamada entrante</span>
-        </div>
+        <div class="incoming-call-header"><span>📞 Llamada entrante</span></div>
         <p><strong id="callerName"></strong> te está llamando...</p>
         <div class="incoming-call-buttons">
             <button id="acceptCallBtn" class="accept-call-btn">Aceptar</button>
@@ -98,6 +88,9 @@
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/socket.io/socket.io.js"></script>
+
+<!-- Sistema de logros (antes del código principal) -->
+<script src="Logros.js"></script>
 
 <script>
 // ─────────────────────────────────────────────────────────
@@ -135,7 +128,6 @@ class VideoCallManager {
         this.remoteStream = null;
         this.isInCall = false;
         this.currentCallWith = null;
-        
         this.configuration = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -149,89 +141,41 @@ class VideoCallManager {
 
     async initLocalStream() {
         try {
-            console.log('📷 Solicitando acceso a cámara/micrófono...');
-            this.localStream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
-            console.log('✅ Stream obtenido correctamente');
-            
+            this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             const localVideo = document.getElementById('localVideo');
-            if (localVideo) {
-                localVideo.srcObject = this.localStream;
-                console.log('📹 Video local configurado');
-            }
+            if (localVideo) localVideo.srcObject = this.localStream;
             return true;
         } catch (error) {
-            console.error('❌ Error al acceder a dispositivos:', error);
             alert('No se pudo acceder a la cámara/micrófono. Por favor verifica los permisos.');
             return false;
         }
     }
 
     async startCall(targetUserId, targetUserName) {
-        console.log(`📞 Iniciando llamada a: ${targetUserName}`);
-        
         if (!this.localStream) {
             const success = await this.initLocalStream();
             if (!success) return;
         }
-
         this.currentCallWith = { id: targetUserId, name: targetUserName };
-        
-        // Crear conexión peer
         this.peerConnection = new RTCPeerConnection(this.configuration);
-        
-        // Añadir stream local
-        this.localStream.getTracks().forEach(track => {
-            this.peerConnection.addTrack(track, this.localStream);
-            console.log(`➕ Track añadido: ${track.kind}`);
-        });
-        
-        // Manejar stream remoto
+        this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
         this.peerConnection.ontrack = (event) => {
-            console.log('📡 Recibiendo stream remoto');
             this.remoteStream = event.streams[0];
             const remoteVideo = document.getElementById('remoteVideo');
-            if (remoteVideo) {
-                remoteVideo.srcObject = this.remoteStream;
-                console.log('📹 Video remoto configurado');
-            }
+            if (remoteVideo) remoteVideo.srcObject = this.remoteStream;
         };
-        
-        // Manejar ICE candidates
         this.peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log('🔄 Enviando ICE candidate (caller)');
-                this.socket.emit('ice-candidate-caller', {
-                    to: targetUserId,
-                    candidate: event.candidate
-                });
+                this.socket.emit('ice-candidate-caller', { to: targetUserId, candidate: event.candidate });
             }
         };
-        
-        // Estado de la conexión
         this.peerConnection.onconnectionstatechange = () => {
-            console.log(`🔌 Estado conexión: ${this.peerConnection.connectionState}`);
-            if (this.peerConnection.connectionState === 'connected') {
-                console.log('✅ Conexión establecida exitosamente!');
-            } else if (this.peerConnection.connectionState === 'failed') {
-                console.error('❌ Conexión fallida');
-                this.endCall();
-            }
+            if (this.peerConnection.connectionState === 'failed') this.endCall();
         };
-        
         try {
             const offer = await this.peerConnection.createOffer();
             await this.peerConnection.setLocalDescription(offer);
-            console.log('📤 Offer creado y enviado');
-            
-            this.socket.emit('call-user', {
-                to: targetUserId,
-                from: this.currentUser.id,
-                signalData: offer
-            });
-            
+            this.socket.emit('call-user', { to: targetUserId, from: this.currentUser.id, signalData: offer });
             this.isInCall = true;
             this.showCallUI(true);
         } catch (error) {
@@ -240,59 +184,28 @@ class VideoCallManager {
     }
 
     async acceptCall(fromUserId, signal) {
-        console.log(`📞 Aceptando llamada de: ${fromUserId}`);
-        
         if (!this.localStream) {
             const success = await this.initLocalStream();
             if (!success) return;
         }
-
         this.currentCallWith = { id: fromUserId, name: '' };
-        
-        // Crear conexión peer
         this.peerConnection = new RTCPeerConnection(this.configuration);
-        
-        // Añadir stream local
-        this.localStream.getTracks().forEach(track => {
-            this.peerConnection.addTrack(track, this.localStream);
-            console.log(`➕ Track añadido: ${track.kind}`);
-        });
-        
-        // Manejar stream remoto
+        this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
         this.peerConnection.ontrack = (event) => {
-            console.log('📡 Recibiendo stream remoto');
             this.remoteStream = event.streams[0];
             const remoteVideo = document.getElementById('remoteVideo');
-            if (remoteVideo) {
-                remoteVideo.srcObject = this.remoteStream;
-                console.log('📹 Video remoto configurado');
-            }
+            if (remoteVideo) remoteVideo.srcObject = this.remoteStream;
         };
-        
-        // Manejar ICE candidates
         this.peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log('🔄 Enviando ICE candidate (callee)');
-                this.socket.emit('ice-candidate-callee', {
-                    to: fromUserId,
-                    candidate: event.candidate
-                });
+                this.socket.emit('ice-candidate-callee', { to: fromUserId, candidate: event.candidate });
             }
         };
-        
         try {
             await this.peerConnection.setRemoteDescription(signal);
-            console.log('📥 Remote description establecida');
-            
             const answer = await this.peerConnection.createAnswer();
             await this.peerConnection.setLocalDescription(answer);
-            console.log('📤 Answer creado y enviado');
-            
-            this.socket.emit('accept-call', {
-                to: fromUserId,
-                signal: answer
-            });
-            
+            this.socket.emit('accept-call', { to: fromUserId, signal: answer });
             this.isInCall = true;
             this.showCallUI(true);
         } catch (error) {
@@ -301,30 +214,12 @@ class VideoCallManager {
     }
 
     async handleRemoteSignal(signal) {
-        if (!this.peerConnection) {
-            console.log('⚠️ Peer connection no existe');
-            return;
-        }
-        
+        if (!this.peerConnection) return;
         try {
-            if (signal.type === 'offer') {
-                console.log('📥 Recibido offer');
+            if (signal.type === 'answer') {
                 await this.peerConnection.setRemoteDescription(signal);
-                const answer = await this.peerConnection.createAnswer();
-                await this.peerConnection.setLocalDescription(answer);
-                this.socket.emit('accept-call', {
-                    to: this.currentCallWith.id,
-                    signal: answer
-                });
-                console.log('📤 Answer enviado');
-            } else if (signal.type === 'answer') {
-                console.log('📥 Recibido answer');
-                await this.peerConnection.setRemoteDescription(signal);
-                console.log('✅ Remote description establecida');
             } else if (signal.candidate) {
-                console.log('📥 Recibido ICE candidate');
                 await this.peerConnection.addIceCandidate(signal);
-                console.log('✅ ICE candidate añadido');
             }
         } catch (error) {
             console.error('❌ Error manejando señal:', error);
@@ -332,28 +227,15 @@ class VideoCallManager {
     }
 
     endCall() {
-        console.log('🔴 Finalizando llamada');
-        
-        if (this.peerConnection) {
-            this.peerConnection.close();
-            this.peerConnection = null;
-        }
-        
-        if (this.localStream) {
-            this.localStream.getTracks().forEach(track => track.stop());
-            this.localStream = null;
-        }
-        
+        if (this.peerConnection) { this.peerConnection.close(); this.peerConnection = null; }
+        if (this.localStream) { this.localStream.getTracks().forEach(track => track.stop()); this.localStream = null; }
         this.remoteStream = null;
         this.isInCall = false;
-        
         if (this.currentCallWith) {
             this.socket.emit('hangup', { to: this.currentCallWith.id });
             this.currentCallWith = null;
         }
-        
         this.showCallUI(false);
-        
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
         if (localVideo) localVideo.srcObject = null;
@@ -362,9 +244,7 @@ class VideoCallManager {
 
     showCallUI(inCall) {
         const callModal = document.getElementById('videoCallModal');
-        if (callModal) {
-            callModal.style.display = inCall ? 'flex' : 'none';
-        }
+        if (callModal) callModal.style.display = inCall ? 'flex' : 'none';
         document.body.style.overflow = inCall ? 'hidden' : '';
     }
 }
@@ -391,87 +271,43 @@ window.addEventListener('DOMContentLoaded', () => {
 // ─────────────────────────────────────────────────────────
 function initSocketAndVideo() {
     socket = io();
-    
     socket.on('connect', () => {
-        console.log('✅ Socket conectado');
-        socket.emit('register-user', {
-            userId: currentUser.id,
-            userName: currentUser.full_name
-        });
+        socket.emit('register-user', { userId: currentUser.id, userName: currentUser.full_name });
     });
-    
     videoCallManager = new VideoCallManager(socket, currentUser);
-    
     socket.on('incoming-call', ({ from, signal }) => {
-        console.log('📞 Llamada entrante de:', from);
-        pendingCallSignal = signal;
-        pendingCaller = from;
+        pendingCallSignal = signal; pendingCaller = from;
         showIncomingCall(from, signal);
     });
-    
-    socket.on('call-accepted', ({ signal }) => {
-        console.log('✅ Llamada aceptada');
-        videoCallManager.handleRemoteSignal(signal);
-    });
-    
+    socket.on('call-accepted', ({ signal }) => videoCallManager.handleRemoteSignal(signal));
     socket.on('ice-candidate-from-callee', ({ candidate }) => {
-        console.log('📥 ICE candidate del que acepta');
-        if (videoCallManager && videoCallManager.peerConnection) {
-            videoCallManager.peerConnection.addIceCandidate(candidate).catch(err => {
-                console.error('❌ Error agregando ICE candidate:', err);
-            });
-        }
+        if (videoCallManager && videoCallManager.peerConnection)
+            videoCallManager.peerConnection.addIceCandidate(candidate).catch(console.error);
     });
-    
     socket.on('ice-candidate-from-caller', ({ candidate }) => {
-        console.log('📥 ICE candidate del que llama');
-        if (videoCallManager && videoCallManager.peerConnection) {
-            videoCallManager.peerConnection.addIceCandidate(candidate).catch(err => {
-                console.error('❌ Error agregando ICE candidate:', err);
-            });
-        }
+        if (videoCallManager && videoCallManager.peerConnection)
+            videoCallManager.peerConnection.addIceCandidate(candidate).catch(console.error);
     });
-    
     socket.on('call-ended', () => {
-        console.log('🔴 Llamada finalizada');
-        if (videoCallManager.isInCall) {
-            videoCallManager.endCall();
-            alert('La llamada ha terminado');
-        }
+        if (videoCallManager.isInCall) { videoCallManager.endCall(); alert('La llamada ha terminado'); }
     });
-    
-    socket.on('call-rejected', () => {
-        console.log('❌ Llamada rechazada');
-        videoCallManager.endCall();
-        alert('La llamada fue rechazada');
-    });
-    
-    socket.on('user-offline', () => {
-        alert('El usuario no está disponible');
-        videoCallManager.endCall();
-    });
+    socket.on('call-rejected', () => { videoCallManager.endCall(); alert('La llamada fue rechazada'); });
+    socket.on('user-offline', () => { alert('El usuario no está disponible'); videoCallManager.endCall(); });
 }
 
 function showIncomingCall(caller, signal) {
-    if (videoCallManager.isInCall) {
-        socket.emit('reject-call', { to: caller.userId });
-        return;
-    }
-    
+    if (videoCallManager.isInCall) { socket.emit('reject-call', { to: caller.userId }); return; }
     const notification = document.getElementById('incomingCallNotification');
     document.getElementById('callerName').textContent = caller.userName;
     notification.style.display = 'block';
-    
     document.getElementById('acceptCallBtn').onclick = async () => {
         notification.style.display = 'none';
         await videoCallManager.acceptCall(caller.userId, signal);
     };
-    
     document.getElementById('rejectCallBtn').onclick = () => {
         notification.style.display = 'none';
         socket.emit('reject-call', { to: caller.userId });
     };
-    
     setTimeout(() => {
         if (notification.style.display === 'block') {
             notification.style.display = 'none';
@@ -481,41 +317,22 @@ function showIncomingCall(caller, signal) {
 }
 
 function setupVideoControls() {
-    const toggleMicBtn = document.getElementById('toggleMicBtn');
+    const toggleMicBtn   = document.getElementById('toggleMicBtn');
     const toggleVideoBtn = document.getElementById('toggleVideoBtn');
-    const endCallBtn = document.getElementById('endCallBtn');
-    
-    if (toggleMicBtn) {
-        toggleMicBtn.onclick = () => {
-            if (videoCallManager && videoCallManager.localStream) {
-                const audioTrack = videoCallManager.localStream.getAudioTracks()[0];
-                if (audioTrack) {
-                    audioTrack.enabled = !audioTrack.enabled;
-                    toggleMicBtn.textContent = audioTrack.enabled ? '🎤 Micrófono' : '🔇 Micrófono OFF';
-                }
-            }
-        };
-    }
-    
-    if (toggleVideoBtn) {
-        toggleVideoBtn.onclick = () => {
-            if (videoCallManager && videoCallManager.localStream) {
-                const videoTrack = videoCallManager.localStream.getVideoTracks()[0];
-                if (videoTrack) {
-                    videoTrack.enabled = !videoTrack.enabled;
-                    toggleVideoBtn.textContent = videoTrack.enabled ? '📷 Cámara' : '📷 Cámara OFF';
-                }
-            }
-        };
-    }
-    
-    if (endCallBtn) {
-        endCallBtn.onclick = () => {
-            if (videoCallManager) {
-                videoCallManager.endCall();
-            }
-        };
-    }
+    const endCallBtn     = document.getElementById('endCallBtn');
+    if (toggleMicBtn) toggleMicBtn.onclick = () => {
+        if (videoCallManager && videoCallManager.localStream) {
+            const t = videoCallManager.localStream.getAudioTracks()[0];
+            if (t) { t.enabled = !t.enabled; toggleMicBtn.textContent = t.enabled ? '🎤 Micrófono' : '🔇 Micrófono OFF'; }
+        }
+    };
+    if (toggleVideoBtn) toggleVideoBtn.onclick = () => {
+        if (videoCallManager && videoCallManager.localStream) {
+            const t = videoCallManager.localStream.getVideoTracks()[0];
+            if (t) { t.enabled = !t.enabled; toggleVideoBtn.textContent = t.enabled ? '📷 Cámara' : '📷 Cámara OFF'; }
+        }
+    };
+    if (endCallBtn) endCallBtn.onclick = () => { if (videoCallManager) videoCallManager.endCall(); };
 }
 
 // ─────────────────────────────────────────────────────────
@@ -524,10 +341,8 @@ function setupVideoControls() {
 async function cargarAmigos() {
     const res = await authFetch('/api/friends');
     const lista = await res.json();
-
     const gruposRes = await authFetch('/api/groups');
     const grupos = await gruposRes.json();
-
     const cont = document.getElementById('listaAmigos');
     cont.innerHTML = '';
 
@@ -542,20 +357,15 @@ async function cargarAmigos() {
         const div = document.createElement('div');
         div.className = 'user';
         div.title = u.full_name;
-        div.style.cursor = 'pointer';
-        div.style.display = 'flex';
-        div.style.alignItems = 'center';
-        div.style.justifyContent = 'center';
-        div.style.background = '#2b3a4f';
-        div.innerHTML = `${iniciales(u.full_name)}`;
+        div.style.cssText = 'cursor:pointer;display:flex;align-items:center;justify-content:center;background:#2b3a4f;';
+        div.innerHTML = iniciales(u.full_name);
         div.onclick = () => abrirChat(u, div);
         cont.appendChild(div);
     });
 
     if (grupos.length) {
         const hr = document.createElement('hr');
-        hr.style.border = '1px solid white';
-        hr.style.margin = '10px';
+        hr.style.cssText = 'border:1px solid white;margin:10px;';
         cont.appendChild(hr);
     }
 
@@ -563,11 +373,7 @@ async function cargarAmigos() {
         const div = document.createElement('div');
         div.className = 'user';
         div.title = g.nombre;
-        div.style.cursor = 'pointer';
-        div.style.display = 'flex';
-        div.style.alignItems = 'center';
-        div.style.justifyContent = 'center';
-        div.style.background = '#446447';
+        div.style.cssText = 'cursor:pointer;display:flex;align-items:center;justify-content:center;background:#446447;';
         div.innerHTML = '👥';
         div.onclick = () => abrirGrupo(g, div);
         cont.appendChild(div);
@@ -577,34 +383,24 @@ async function cargarAmigos() {
 async function buscarUsuario() {
     const q = document.getElementById('buscarInput').value.trim();
     if (!q) return;
-
     const res = await authFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
     const users = await res.json();
     const drop = document.getElementById('resultadosBusqueda');
-
     if (!users.length) {
         drop.innerHTML = '<div class="res-item">Sin resultados</div>';
         drop.style.display = 'block';
         return;
     }
-
     drop.innerHTML = '';
-    drop.style.background = 'white';
-    drop.style.color = 'black';
-    drop.style.padding = '10px';
-    drop.style.borderRadius = '5px';
-    
+    drop.style.cssText = 'background:white;color:black;padding:10px;border-radius:5px;';
     users.forEach(u => {
         const div = document.createElement('div');
         div.className = 'res-item';
-        div.style.padding = '10px';
-        div.style.borderBottom = '1px solid #ccc';
-        div.style.display = 'flex';
-        div.style.justifyContent = 'space-between';
+        div.style.cssText = 'padding:10px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;';
         div.innerHTML = `
             <strong>${u.full_name}</strong>
             <span>${u.email}</span>
-            <button onclick="agregarAmigo(${u.id}, '${u.full_name}')" style="background:#446447; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">+ Agregar</button>`;
+            <button onclick="agregarAmigo(${u.id}, '${u.full_name}')" style="background:#446447;color:white;border:none;padding:5px 10px;border-radius:5px;cursor:pointer;">+ Agregar</button>`;
         drop.appendChild(div);
     });
     drop.style.display = 'block';
@@ -635,81 +431,52 @@ document.addEventListener('click', e => {
 async function abrirChat(friend, el) {
     activeFriend = friend;
     activeChatType = 'privado';
-
-    // Consultar estado real del amigo
     let estadoHTML = `<p class="online" style="color:#aaa;">Cargando...</p>`;
     try {
         const resStatus = await authFetch(`/api/users/${friend.id}/status`);
         const status = await resStatus.json();
-        if (status.is_online) {
-            estadoHTML = `<p class="online" style="color:#5efea0; margin:0;">● En línea</p>`;
-        } else {
-            estadoHTML = `<p class="online" style="color:#aaa; margin:0;">⏱ Última vez: ${formatLastSeen(status.last_seen)}</p>`;
-        }
+        estadoHTML = status.is_online
+            ? `<p class="online" style="color:#5efea0;margin:0;">● En línea</p>`
+            : `<p class="online" style="color:#aaa;margin:0;">⏱ Última vez: ${formatLastSeen(status.last_seen)}</p>`;
     } catch(e) {
-        estadoHTML = `<p class="online" style="color:#aaa; margin:0;">● Desconocido</p>`;
+        estadoHTML = `<p class="online" style="color:#aaa;margin:0;">● Desconocido</p>`;
     }
-
     document.getElementById('chatHeader').innerHTML = `
-        <div class="avatar" style="background:#446447; display:flex; align-items:center; justify-content:center; color:white;">${iniciales(friend.full_name)}</div>
+        <div class="avatar" style="background:#446447;display:flex;align-items:center;justify-content:center;color:white;">${iniciales(friend.full_name)}</div>
         <div>
             <strong>${friend.full_name}</strong>
             ${estadoHTML}
         </div>
         <div class="chat-actions" style="margin-left:auto;">
-            <button class="btn btn-outline-success btn-sm" onclick="startVideoCall()" style="background:#446447; color:white; border:none; padding:5px 15px; border-radius:5px;">📹 Videollamada</button>
+            <button class="btn btn-outline-success btn-sm" onclick="startVideoCall()" style="background:#446447;color:white;border:none;padding:5px 15px;border-radius:5px;">📹 Videollamada</button>
         </div>`;
-
     document.querySelectorAll('.user').forEach(i => i.classList.remove('activo'));
     if (el) el.classList.add('activo');
-
     await cargarMensajes();
     suscribirRealtime();
     suscribirEstadoAmigo(friend.id);
 }
 
-
 async function abrirGrupo(group, el) {
     activeChatType = 'grupo';
     activeGroup = group;
     activeFriend = null;
-
     document.getElementById('chatHeader').innerHTML = `
-        <div class="avatar" style="background:#446447; display:flex; align-items:center; justify-content:center; color:white;">👥</div>
-        <div>
-            <strong>${group.nombre}</strong>
-            <p class="online">Grupo</p>
-        </div>`;
-
+        <div class="avatar" style="background:#446447;display:flex;align-items:center;justify-content:center;color:white;">👥</div>
+        <div><strong>${group.nombre}</strong><p class="online">Grupo</p></div>`;
     document.querySelectorAll('.user').forEach(i => i.classList.remove('activo'));
     if (el) el.classList.add('activo');
-
     const res = await authFetch(`/api/groups/${group.id}/messages`);
     const msgs = await res.json();
-
     const cont = document.getElementById('chatMessages');
     cont.innerHTML = '';
-
-    msgs.forEach(m => agregarBurbuja({
-        username: m.username,
-        message: m.mensaje,
-        created_at: m.created_at
-    }));
-
+    msgs.forEach(m => agregarBurbuja({ username: m.username, message: m.mensaje, created_at: m.created_at }));
     suscribirRealtimeGrupo();
 }
 
 async function startVideoCall() {
-    if (!activeFriend) {
-        alert('Selecciona un contacto primero');
-        return;
-    }
-    
-    if (!videoCallManager) {
-        alert('Sistema de video no disponible');
-        return;
-    }
-    
+    if (!activeFriend) { alert('Selecciona un contacto primero'); return; }
+    if (!videoCallManager) { alert('Sistema de video no disponible'); return; }
     await videoCallManager.startCall(activeFriend.id, activeFriend.full_name);
 }
 
@@ -727,31 +494,30 @@ function agregarBurbuja(m) {
     const esMio = m.username === currentUser.full_name;
     const div = document.createElement('div');
     div.className = 'message ' + (esMio ? 'propio' : 'ajeno');
-
     let contenido = '';
     if (m.message.startsWith('[img]')) {
         const url = m.message.slice(5);
-        contenido = `<img src="${url}" style="max-width:100%; width:220px; border-radius:8px; display:block; cursor:pointer; object-fit:cover;" onclick="window.open('${url}','_blank')">`;
+        contenido = `<img src="${url}" style="max-width:100%;width:220px;border-radius:8px;display:block;cursor:pointer;object-fit:cover;" onclick="window.open('${url}','_blank')">`;
     } else if (m.message.startsWith('[loc]')) {
         const coords = m.message.slice(5);
         const [lat, lng] = coords.split(',');
-        contenido = `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" style="color:inherit;">
-            📍 Ver ubicación en Maps
-        </a>`;
+        contenido = `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" style="color:inherit;">📍 Ver ubicación en Maps</a>`;
     } else {
         contenido = `<span>${escapeHtml(m.message)}</span>`;
     }
-
     div.innerHTML = `
         ${!esMio ? `<span class="msg-autor" style="font-size:12px;">${m.username}</span><br>` : ''}
         ${contenido}
-        <div class="msg-hora" style="font-size:10px; margin-top:5px;">${formatHora(m.created_at)}</div>`;
+        <div class="msg-hora" style="font-size:10px;margin-top:5px;">${formatHora(m.created_at)}</div>`;
     cont.appendChild(div);
     cont.scrollTop = cont.scrollHeight;
 }
 
+// ─────────────────────────────────────────────────────────
+//  ENVIAR MENSAJE  ← con logros integrados
+// ─────────────────────────────────────────────────────────
 async function enviarMensaje() {
-    if (!activeFriend && activeChatType==='privado') return;
+    if (!activeFriend && activeChatType === 'privado') return;
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
     if (!text) return;
@@ -763,91 +529,64 @@ async function enviarMensaje() {
         await authFetch('/api/group-messages', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                grupo_id: activeGroup.id,
-                mensaje: text
-            })
+            body: JSON.stringify({ grupo_id: activeGroup.id, mensaje: text })
         });
-        return;
+    } else {
+        await authFetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to_user_id: activeFriend.id, message: text })
+        });
     }
 
-    await authFetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to_user_id: activeFriend.id, message: text })
-    });
+    // ── Logro 1: Agente Secreto (primer mensaje) ──
+    desbloquearLogro('agente_secreto');
+    // ── Logro 2: Hiperconectado (10 mensajes; el backend verifica el total) ──
+    desbloquearLogro('hiperconectado');
 }
 
-function enterEnviar(e) {
-    if (e.key === 'Enter') enviarMensaje();
-}
+function enterEnviar(e) { if (e.key === 'Enter') enviarMensaje(); }
 
-function buildChatId(id1, id2) {
-    return [id1, id2].sort().join('_');
-}
+function buildChatId(id1, id2) { return [id1, id2].sort().join('_'); }
 
 function suscribirRealtime() {
     if (realtimeSub) sbClient.removeChannel(realtimeSub);
-
     const chatId = buildChatId(currentUser.id, activeFriend.id);
-
     realtimeSub = sbClient
         .channel('messages-' + chatId)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `chat_id=eq.${chatId}`
-        }, payload => {
-            agregarBurbuja(payload.new);
-        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
+            payload => agregarBurbuja(payload.new))
         .subscribe();
 }
 
-
 function suscribirRealtimeGrupo() {
     if (realtimeSub) sbClient.removeChannel(realtimeSub);
-
     realtimeSub = sbClient
         .channel('grupo-' + activeGroup.id)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'mensajes_grupo',
-            filter: `grupo_id=eq.${activeGroup.id}`
-        }, payload => {
-            agregarBurbuja({
-                username: payload.new.username,
-                message: payload.new.mensaje,
-                created_at: payload.new.created_at
-            });
-        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes_grupo', filter: `grupo_id=eq.${activeGroup.id}` },
+            payload => agregarBurbuja({ username: payload.new.username, message: payload.new.mensaje, created_at: payload.new.created_at }))
         .subscribe();
 }
 
 function suscribirEstadoAmigo(friendId) {
     if (statusSub) sbClient.removeChannel(statusSub);
-
     statusSub = sbClient
         .channel('status-' + friendId)
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'users',
-            filter: `id=eq.${friendId}`
-        }, payload => {
-            const { is_online, last_seen } = payload.new;
-            const estadoHTML = is_online
-                ? `<p class="online" style="color:#5efea0; margin:0;">● En línea</p>`
-                : `<p class="online" style="color:#aaa; margin:0;">⏱ Última vez: ${formatLastSeen(last_seen)}</p>`;
-
-            const headerDiv = document.getElementById('chatHeader');
-            const pEstado = headerDiv ? headerDiv.querySelector('.online') : null;
-            if (pEstado) pEstado.outerHTML = estadoHTML;
-        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${friendId}` },
+            payload => {
+                const { is_online, last_seen } = payload.new;
+                const estadoHTML = is_online
+                    ? `<p class="online" style="color:#5efea0;margin:0;">● En línea</p>`
+                    : `<p class="online" style="color:#aaa;margin:0;">⏱ Última vez: ${formatLastSeen(last_seen)}</p>`;
+                const pEstado = document.getElementById('chatHeader')?.querySelector('.online');
+                if (pEstado) pEstado.outerHTML = estadoHTML;
+            })
         .subscribe();
 }
 
+// ─────────────────────────────────────────────────────────
+//  CREAR GRUPO  ← con logro integrado
+// ─────────────────────────────────────────────────────────
 async function crearGrupo() {
     const res = await authFetch('/api/friends');
     const amigos = await res.json();
@@ -865,14 +604,21 @@ async function crearGrupo() {
         return;
     }
 
-    await authFetch('/api/groups', {
+    const resGrupo = await authFetch('/api/groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre, miembros })
     });
 
-    alert('Grupo creado');
-    cargarAmigos();
+    if (resGrupo.ok) {
+        // ── Logro 4: Capitán Fundador ──
+        desbloquearLogro('capitan_fundador');
+        alert('Grupo creado');
+        cargarAmigos();
+    } else {
+        const d = await resGrupo.json();
+        alert(d.error || 'Error al crear grupo');
+    }
 }
 
 function authFetch(url, opts = {}) {
@@ -884,10 +630,7 @@ function authFetch(url, opts = {}) {
 
 async function logout() {
     if (videoCallManager && videoCallManager.isInCall) videoCallManager.endCall();
-
-    // Marcar offline explícitamente en la BD
     try { await authFetch('/api/logout', { method: 'POST' }); } catch(e) {}
-
     if (socket) socket.disconnect();
     localStorage.clear();
     window.location.href = 'InicioS.html';
@@ -923,7 +666,6 @@ function toggleClipMenu() {
     menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
 }
 
-// Cierra el menú si se hace click fuera
 document.addEventListener('click', e => {
     if (!e.target.closest('.chat-input'))
         document.getElementById('clipMenu').style.display = 'none';
@@ -939,36 +681,33 @@ async function enviarImagen(input) {
     const ext  = file.name.split('.').pop();
     const path = `chat/${Date.now()}_${currentUser.id}.${ext}`;
 
-    // Subir a Supabase Storage (bucket: "chat-media")
-    const { error: upErr } = await sbClient.storage
-        .from('chat-media')
-        .upload(path, file, { upsert: true });
-
+    const { error: upErr } = await sbClient.storage.from('chat-media').upload(path, file, { upsert: true });
     if (upErr) { alert('Error al subir imagen: ' + upErr.message); return; }
 
-    const { data: urlData } = sbClient.storage
-        .from('chat-media')
-        .getPublicUrl(path);
-
+    const { data: urlData } = sbClient.storage.from('chat-media').getPublicUrl(path);
     const mensaje = `[img]${urlData.publicUrl}`;
 
     if (activeChatType === 'grupo') {
         await authFetch('/api/group-messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ grupo_id: activeGroup.id, mensaje })
         });
     } else {
         await authFetch('/api/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ to_user_id: activeFriend.id, message: mensaje })
         });
     }
 
+    // ── Logros de mensaje ──
+    desbloquearLogro('agente_secreto');
+    desbloquearLogro('hiperconectado');
     input.value = '';
 }
 
+// ─────────────────────────────────────────────────────────
+//  ENVIAR UBICACIÓN  ← con logros integrados
+// ─────────────────────────────────────────────────────────
 async function enviarUbicacion() {
     if (activeChatType === 'privado' && !activeFriend) return;
     if (activeChatType === 'grupo' && !activeGroup) return;
@@ -982,17 +721,21 @@ async function enviarUbicacion() {
 
         if (activeChatType === 'grupo') {
             await authFetch('/api/group-messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ grupo_id: activeGroup.id, mensaje })
             });
         } else {
             await authFetch('/api/messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ to_user_id: activeFriend.id, message: mensaje })
             });
         }
+
+        // ── Logros: Agente Secreto + Hiperconectado + Corresponsal de Campo ──
+        desbloquearLogro('agente_secreto');
+        desbloquearLogro('hiperconectado');
+        desbloquearLogro('corresponsal_campo');
+
     }, () => alert('No se pudo obtener la ubicación'));
 }
 
