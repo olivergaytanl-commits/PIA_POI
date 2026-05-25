@@ -470,7 +470,7 @@ cursor:pointer;
     position: absolute;
     bottom: 60px;
     left: 10px;
-    background: white;
+    background: rgb(102, 197, 91);
     border: 1px solid #ccc;
     border-radius: 10px;
     padding: 8px;
