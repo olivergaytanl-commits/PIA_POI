@@ -45,6 +45,12 @@ io.on('connection', (socket) => {
     userDetails.set(socket.id, { userId, userName });
     console.log(`👤 Usuario registrado: ${userName} (${userId})`);
     console.log('Usuarios conectados:', Array.from(connectedUsers.keys()));
+
+    // Marcar como online en la BD
+    supabase.from('users')
+      .update({ is_online: true })
+      .eq('id', userId)
+      .then(() => console.log(`🟢 ${userName} marcado online`));
   });
 
   // Iniciar videollamada (el que llama)
@@ -119,6 +125,12 @@ io.on('connection', (socket) => {
       console.log(`👋 Usuario desconectado: ${user.userName}`);
       connectedUsers.delete(user.userId);
       userDetails.delete(socket.id);
+
+      // Marcar como offline con timestamp
+      supabase.from('users')
+        .update({ is_online: false, last_seen: new Date().toISOString() })
+        .eq('id', user.userId)
+        .then(() => console.log(`🔴 ${user.userName} marcado offline`));
     }
   });
 });
@@ -198,6 +210,12 @@ app.post('/api/login', async (req, res) => {
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
+
+  // Marcar como online al iniciar sesión
+  await supabase.from('users')
+    .update({ is_online: true })
+    .eq('id', user.id);
+
   res.json({ user: { id: user.id, full_name: user.full_name, email: user.email, img_profile: user.img_profile, banner_url: user.banner_url }, token });
 });
 
@@ -216,6 +234,26 @@ app.get('/api/users/search', authMiddleware, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// Estado online/offline de un usuario
+app.get('/api/users/:id/status', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('is_online, last_seen')
+    .eq('id', req.params.id)
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// Logout explícito: marcar offline y guardar last_seen
+app.post('/api/logout', authMiddleware, async (req, res) => {
+  await supabase.from('users')
+    .update({ is_online: false, last_seen: new Date().toISOString() })
+    .eq('id', req.user.id);
+  res.json({ ok: true });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

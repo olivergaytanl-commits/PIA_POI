@@ -633,12 +633,27 @@ document.addEventListener('click', e => {
 
 async function abrirChat(friend, el) {
     activeFriend = friend;
+    activeChatType = 'privado';
+
+    // Consultar estado real del amigo
+    let estadoHTML = `<p class="online" style="color:#aaa;">Cargando...</p>`;
+    try {
+        const resStatus = await authFetch(`/api/users/${friend.id}/status`);
+        const status = await resStatus.json();
+        if (status.is_online) {
+            estadoHTML = `<p class="online" style="color:#5efea0; margin:0;">● En línea</p>`;
+        } else {
+            estadoHTML = `<p class="online" style="color:#aaa; margin:0;">⏱ Última vez: ${formatLastSeen(status.last_seen)}</p>`;
+        }
+    } catch(e) {
+        estadoHTML = `<p class="online" style="color:#aaa; margin:0;">● Desconocido</p>`;
+    }
 
     document.getElementById('chatHeader').innerHTML = `
         <div class="avatar" style="background:#446447; display:flex; align-items:center; justify-content:center; color:white;">${iniciales(friend.full_name)}</div>
         <div>
             <strong>${friend.full_name}</strong>
-            <p class="online">Online</p>
+            ${estadoHTML}
         </div>
         <div class="chat-actions" style="margin-left:auto;">
             <button class="btn btn-outline-success btn-sm" onclick="startVideoCall()" style="background:#446447; color:white; border:none; padding:5px 15px; border-radius:5px;">📹 Videollamada</button>
@@ -842,8 +857,12 @@ function authFetch(url, opts = {}) {
     });
 }
 
-function logout() {
+async function logout() {
     if (videoCallManager && videoCallManager.isInCall) videoCallManager.endCall();
+
+    // Marcar offline explícitamente en la BD
+    try { await authFetch('/api/logout', { method: 'POST' }); } catch(e) {}
+
     if (socket) socket.disconnect();
     localStorage.clear();
     window.location.href = 'InicioS.html';
@@ -860,6 +879,15 @@ function escapeHtml(str) {
 function formatHora(ts) {
     if (!ts) return '';
     return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatLastSeen(ts) {
+    if (!ts) return 'desconocido';
+    const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+    if (diff < 60)    return 'hace un momento';
+    if (diff < 3600)  return `hace ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
+    return new Date(ts).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
 }
 </script>
 
