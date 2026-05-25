@@ -9,40 +9,6 @@
     <title>Chats - BetGol</title>
 </head>
 <body>
-<!-- DEBUG OVERLAY -->
-<div id="debugOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:50%;background:rgba(0,0,0,0.85);color:#0f0;font-size:11px;font-family:monospace;overflow-y:auto;z-index:99999;padding:8px;">
-  <button onclick="document.getElementById('debugOverlay').style.display='none'" style="position:sticky;top:0;background:red;color:white;border:none;padding:4px 8px;cursor:pointer;float:right;">✕ Cerrar</button>
-  <b>DEBUG LOG</b><br><div id="debugLog"></div>
-</div>
-<button onclick="document.getElementById('debugOverlay').style.display='block'" style="position:fixed;bottom:10px;right:10px;z-index:99998;background:#ff6600;color:white;border:none;padding:8px 14px;border-radius:20px;font-weight:bold;cursor:pointer;">🐛 DEBUG</button>
-
-<script>
-(function(){
-  var orig = {};
-  ['log','warn','error'].forEach(function(m){
-    orig[m] = console[m].bind(console);
-    console[m] = function(){
-      orig[m].apply(console, arguments);
-      var msg = Array.from(arguments).map(function(a){
-        try { return typeof a === 'object' ? JSON.stringify(a) : String(a); } catch(e){ return String(a); }
-      }).join(' ');
-      var el = document.getElementById('debugLog');
-      if(el){
-        var line = document.createElement('div');
-        line.style.borderBottom = '1px solid #333';
-        line.style.padding = '2px 0';
-        line.style.color = m === 'error' ? '#ff4444' : m === 'warn' ? '#ffaa00' : '#00ff00';
-        line.textContent = new Date().toLocaleTimeString() + ' ['+m+'] ' + msg;
-        el.appendChild(line);
-        el.scrollTop = el.scrollHeight;
-      }
-    };
-  });
-  window.onerror = function(msg, src, line, col, err){
-    console.error('UNCAUGHT: ' + msg + ' (' + src + ':' + line + ')');
-  };
-})();
-</script>
 
 <nav class="navbar">
     <a href="Inicio.html" class="sesion nav-left">BetGol ⚽</a>
@@ -80,9 +46,14 @@
 
         <!-- INPUT -->
         <div class="chat-input">
-            <button class="btn btn-outline-secondary">📎</button>
-            <input type="text" id="msgInput" placeholder="mensaje..." onkeydown="enterEnviar(event)">
-            <button onclick="enviarMensaje()">Enviar</button>
+        <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="enviarImagen(this)">
+        <div class="clip-menu" id="clipMenu" style="display:none;">
+            <button onclick="document.getElementById('fileInput').click()">🖼️ Imagen</button>
+            <button onclick="enviarUbicacion()">📍 Ubicación</button>
+        </div>
+        <button class="btn btn-outline-secondary" onclick="toggleClipMenu()">📎</button>
+        <input type="text" id="msgInput" placeholder="mensaje..." onkeydown="enterEnviar(event)">
+        <button onclick="enviarMensaje()">Enviar</button>
         </div>
 
     </div>
@@ -164,27 +135,11 @@ class VideoCallManager {
         
         this.configuration = {
             iceServers: [
-                { urls: 'stun:stun.relay.metered.ca:80' },
-                {
-                    urls: 'turn:global.relay.metered.ca:80',
-                    username: '9f4e271e08ea6740306b75a9',
-                    credential: 'TYOXGgRZdHOOdwu4'
-                },
-                {
-                    urls: 'turn:global.relay.metered.ca:80?transport=tcp',
-                    username: '9f4e271e08ea6740306b75a9',
-                    credential: 'TYOXGgRZdHOOdwu4'
-                },
-                {
-                    urls: 'turn:global.relay.metered.ca:443',
-                    username: '9f4e271e08ea6740306b75a9',
-                    credential: 'TYOXGgRZdHOOdwu4'
-                },
-                {
-                    urls: 'turns:global.relay.metered.ca:443?transport=tcp',
-                    username: '9f4e271e08ea6740306b75a9',
-                    credential: 'TYOXGgRZdHOOdwu4'
-                }
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
             ]
         };
     }
@@ -223,20 +178,6 @@ class VideoCallManager {
         
         // Crear conexión peer
         this.peerConnection = new RTCPeerConnection(this.configuration);
-
-        this.peerConnection.onconnectionstatechange = () => {
-            console.log(`🔌 [CALLEE] Estado conexión: ${this.peerConnection.connectionState}`);
-            if (this.peerConnection.connectionState === 'failed') {
-                console.error('❌ [CALLEE] Conexión fallida');
-                this.endCall();
-            }
-        };
-        this.peerConnection.oniceconnectionstatechange = () => {
-            console.log(`🧊 [CALLEE] ICE state: ${this.peerConnection.iceConnectionState}`);
-        };
-        this.peerConnection.onicegatheringstatechange = () => {
-            console.log(`🧊 [CALLEE] ICE gathering: ${this.peerConnection.iceGatheringState}`);
-        };
         
         // Añadir stream local
         this.localStream.getTracks().forEach(track => {
@@ -268,19 +209,13 @@ class VideoCallManager {
         
         // Estado de la conexión
         this.peerConnection.onconnectionstatechange = () => {
-            console.log(`🔌 [CALLER] Estado conexión: ${this.peerConnection.connectionState}`);
+            console.log(`🔌 Estado conexión: ${this.peerConnection.connectionState}`);
             if (this.peerConnection.connectionState === 'connected') {
                 console.log('✅ Conexión establecida exitosamente!');
             } else if (this.peerConnection.connectionState === 'failed') {
-                console.error('❌ [CALLER] Conexión fallida - llamando endCall');
+                console.error('❌ Conexión fallida');
                 this.endCall();
             }
-        };
-        this.peerConnection.oniceconnectionstatechange = () => {
-            console.log(`🧊 [CALLER] ICE state: ${this.peerConnection.iceConnectionState}`);
-        };
-        this.peerConnection.onicegatheringstatechange = () => {
-            console.log(`🧊 [CALLER] ICE gathering: ${this.peerConnection.iceGatheringState}`);
         };
         
         try {
@@ -313,20 +248,6 @@ class VideoCallManager {
         
         // Crear conexión peer
         this.peerConnection = new RTCPeerConnection(this.configuration);
-
-        this.peerConnection.onconnectionstatechange = () => {
-            console.log(`🔌 [CALLEE] Estado conexión: ${this.peerConnection.connectionState}`);
-            if (this.peerConnection.connectionState === 'failed') {
-                console.error('❌ [CALLEE] Conexión fallida');
-                this.endCall();
-            }
-        };
-        this.peerConnection.oniceconnectionstatechange = () => {
-            console.log(`🧊 [CALLEE] ICE state: ${this.peerConnection.iceConnectionState}`);
-        };
-        this.peerConnection.onicegatheringstatechange = () => {
-            console.log(`🧊 [CALLEE] ICE gathering: ${this.peerConnection.iceGatheringState}`);
-        };
         
         // Añadir stream local
         this.localStream.getTracks().forEach(track => {
@@ -729,9 +650,24 @@ function agregarBurbuja(m) {
     const esMio = m.username === currentUser.full_name;
     const div = document.createElement('div');
     div.className = 'message ' + (esMio ? 'propio' : 'ajeno');
+
+    let contenido = '';
+    if (m.message.startsWith('[img]')) {
+        const url = m.message.slice(5);
+        contenido = `<img src="${url}" style="max-width:220px; border-radius:8px; display:block; cursor:pointer;" onclick="window.open('${url}','_blank')">`;
+    } else if (m.message.startsWith('[loc]')) {
+        const coords = m.message.slice(5);
+        const [lat, lng] = coords.split(',');
+        contenido = `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" style="color:inherit;">
+            📍 Ver ubicación en Maps
+        </a>`;
+    } else {
+        contenido = `<span>${escapeHtml(m.message)}</span>`;
+    }
+
     div.innerHTML = `
         ${!esMio ? `<span class="msg-autor" style="font-size:12px;">${m.username}</span><br>` : ''}
-        <span>${escapeHtml(m.message)}</span>
+        ${contenido}
         <div class="msg-hora" style="font-size:10px; margin-top:5px;">${formatHora(m.created_at)}</div>`;
     cont.appendChild(div);
     cont.scrollTop = cont.scrollHeight;
@@ -805,6 +741,65 @@ function formatHora(ts) {
     if (!ts) return '';
     return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }
+</script>
+
+<script>
+
+function toggleClipMenu() {
+    const menu = document.getElementById('clipMenu');
+    menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+}
+
+// Cierra el menú si se hace click fuera
+document.addEventListener('click', e => {
+    if (!e.target.closest('.chat-input'))
+        document.getElementById('clipMenu').style.display = 'none';
+});
+
+async function enviarImagen(input) {
+    if (!activeFriend || !input.files[0]) return;
+    document.getElementById('clipMenu').style.display = 'none';
+
+    const file = input.files[0];
+    const ext  = file.name.split('.').pop();
+    const path = `chat/${Date.now()}_${currentUser.id}.${ext}`;
+
+    // Subir a Supabase Storage (bucket: "chat-media")
+    const { error: upErr } = await sbClient.storage
+        .from('chat-media')
+        .upload(path, file, { upsert: true });
+
+    if (upErr) { alert('Error al subir imagen'); return; }
+
+    const { data: urlData } = sbClient.storage
+        .from('chat-media')
+        .getPublicUrl(path);
+
+    await authFetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to_user_id: activeFriend.id, message: `[img]${urlData.publicUrl}` })
+    });
+
+    input.value = '';
+}
+
+async function enviarUbicacion() {
+    if (!activeFriend) return;
+    document.getElementById('clipMenu').style.display = 'none';
+
+    if (!navigator.geolocation) { alert('Tu navegador no soporta geolocalización'); return; }
+
+    navigator.geolocation.getCurrentPosition(async pos => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        await authFetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to_user_id: activeFriend.id, message: `[loc]${lat},${lng}` })
+        });
+    }, () => alert('No se pudo obtener la ubicación'));
+}
+
 </script>
 
 </body>
