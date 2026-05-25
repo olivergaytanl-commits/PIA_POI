@@ -731,7 +731,7 @@ function agregarBurbuja(m) {
     let contenido = '';
     if (m.message.startsWith('[img]')) {
         const url = m.message.slice(5);
-        contenido = `<img src="${url}" style="max-width:220px; border-radius:8px; display:block; cursor:pointer;" onclick="window.open('${url}','_blank')">`;
+        contenido = `<img src="${url}" style="max-width:100%; width:220px; border-radius:8px; display:block; cursor:pointer; object-fit:cover;" onclick="window.open('${url}','_blank')">`;
     } else if (m.message.startsWith('[loc]')) {
         const coords = m.message.slice(5);
         const [lat, lng] = coords.split(',');
@@ -930,7 +930,9 @@ document.addEventListener('click', e => {
 });
 
 async function enviarImagen(input) {
-    if (!activeFriend || !input.files[0]) return;
+    if (!input.files[0]) return;
+    if (activeChatType === 'privado' && !activeFriend) return;
+    if (activeChatType === 'grupo' && !activeGroup) return;
     document.getElementById('clipMenu').style.display = 'none';
 
     const file = input.files[0];
@@ -942,34 +944,55 @@ async function enviarImagen(input) {
         .from('chat-media')
         .upload(path, file, { upsert: true });
 
-    if (upErr) { alert('Error al subir imagen'); return; }
+    if (upErr) { alert('Error al subir imagen: ' + upErr.message); return; }
 
     const { data: urlData } = sbClient.storage
         .from('chat-media')
         .getPublicUrl(path);
 
-    await authFetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to_user_id: activeFriend.id, message: `[img]${urlData.publicUrl}` })
-    });
+    const mensaje = `[img]${urlData.publicUrl}`;
+
+    if (activeChatType === 'grupo') {
+        await authFetch('/api/group-messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grupo_id: activeGroup.id, mensaje })
+        });
+    } else {
+        await authFetch('/api/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to_user_id: activeFriend.id, message: mensaje })
+        });
+    }
 
     input.value = '';
 }
 
 async function enviarUbicacion() {
-    if (!activeFriend && activeChatType==='privado') return;
+    if (activeChatType === 'privado' && !activeFriend) return;
+    if (activeChatType === 'grupo' && !activeGroup) return;
     document.getElementById('clipMenu').style.display = 'none';
 
     if (!navigator.geolocation) { alert('Tu navegador no soporta geolocalización'); return; }
 
     navigator.geolocation.getCurrentPosition(async pos => {
         const { latitude: lat, longitude: lng } = pos.coords;
-        await authFetch('/api/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to_user_id: activeFriend.id, message: `[loc]${lat},${lng}` })
-        });
+        const mensaje = `[loc]${lat},${lng}`;
+
+        if (activeChatType === 'grupo') {
+            await authFetch('/api/group-messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ grupo_id: activeGroup.id, mensaje })
+            });
+        } else {
+            await authFetch('/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to_user_id: activeFriend.id, message: mensaje })
+            });
+        }
     }, () => alert('No se pudo obtener la ubicación'));
 }
 
