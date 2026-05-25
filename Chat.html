@@ -117,6 +117,7 @@ let activeFriend = null;
 let activeGroup = null;
 let activeChatType = 'privado';
 let realtimeSub  = null;
+let statusSub    = null;
 let socket       = null;
 let videoCallManager = null;
 let pendingCallSignal = null;
@@ -664,6 +665,7 @@ async function abrirChat(friend, el) {
 
     await cargarMensajes();
     suscribirRealtime();
+    suscribirEstadoAmigo(friend.id);
 }
 
 
@@ -819,6 +821,29 @@ function suscribirRealtimeGrupo() {
                 message: payload.new.mensaje,
                 created_at: payload.new.created_at
             });
+        })
+        .subscribe();
+}
+
+function suscribirEstadoAmigo(friendId) {
+    if (statusSub) sbClient.removeChannel(statusSub);
+
+    statusSub = sbClient
+        .channel('status-' + friendId)
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'users',
+            filter: `id=eq.${friendId}`
+        }, payload => {
+            const { is_online, last_seen } = payload.new;
+            const estadoHTML = is_online
+                ? `<p class="online" style="color:#5efea0; margin:0;">● En línea</p>`
+                : `<p class="online" style="color:#aaa; margin:0;">⏱ Última vez: ${formatLastSeen(last_seen)}</p>`;
+
+            const headerDiv = document.getElementById('chatHeader');
+            const pEstado = headerDiv ? headerDiv.querySelector('.online') : null;
+            if (pEstado) pEstado.outerHTML = estadoHTML;
         })
         .subscribe();
 }
