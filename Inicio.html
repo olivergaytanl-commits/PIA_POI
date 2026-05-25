@@ -21,24 +21,26 @@
 
 <button class="btn btn-outline-success dropdown-toggle" 
         type="button" 
+        id="filtroBtn"
         data-bs-toggle="dropdown">
 
-Filtros
+<span id="filtroTexto">Filtros</span>
 
 </button>
 
 <ul class="dropdown-menu">
 
-<li><a class="dropdown-item" href="#">Hoteles</a></li>
-<li><a class="dropdown-item" href="#">Restaurantes</a></li>
-<li><a class="dropdown-item" href="#">Recreación</a></li>
+<li><a class="dropdown-item filtro-item" href="#" data-categoria="">Todas</a></li>
+<li><a class="dropdown-item filtro-item" href="#" data-categoria="Hoteles">Hoteles</a></li>
+<li><a class="dropdown-item filtro-item" href="#" data-categoria="Restaurantes">Restaurantes</a></li>
+<li><a class="dropdown-item filtro-item" href="#" data-categoria="Recreación">Recreación</a></li>
 
 </ul>
 
 </div>
 
-    <input type="text" class="form-control nav-center" placeholder="Ingrese lo que desea buscar aquí">
-    <button class="btn btn-outline-success nav-center">Buscar</button>
+    <input type="text" id="buscarInput" class="form-control nav-center" placeholder="Ingrese lo que desea buscar aquí" onkeydown="if(event.key==='Enter') buscar()">
+    <button class="btn btn-outline-success nav-center" onclick="buscar()">Buscar</button>
 
 </div>
           
@@ -114,15 +116,32 @@ Filtros
     return colores[cat] || '#72A877'; // verde por default
     }
 
+    /* ── Filtro activo ── */
+    let categoriaActiva = '';
+
     /* ── Cargar y renderizar publicaciones ── */
-    async function cargarPublicaciones() {
-        const res  = await authFetch('/api/publicaciones');
-        const data = await res.json();
+    async function cargarPublicaciones(titulo = '', categoria = '') {
         const feed = document.getElementById('feed');
+        feed.innerHTML = '<p style="color:gray;">Cargando publicaciones...</p>';
+
+        const res  = await authFetch('/api/publicaciones');
+        let data = await res.json();
+
+        // Filtrar por categoría
+        if (categoria) {
+            data = data.filter(p => p.categoria === categoria);
+        }
+
+        // Filtrar por título (case insensitive)
+        if (titulo.trim()) {
+            const q = titulo.trim().toLowerCase();
+            data = data.filter(p => p.titulo.toLowerCase().includes(q));
+        }
+
         feed.innerHTML = '';
 
         if (!data.length) {
-            feed.innerHTML = '<p style="color:gray;">No hay publicaciones aún.</p>';
+            feed.innerHTML = '<p style="color:gray;">No se encontraron publicaciones.</p>';
             return;
         }
 
@@ -307,6 +326,23 @@ Filtros
         });
     });
 }
+
+    /* ── Buscar ── */
+    function buscar() {
+        const titulo = document.getElementById('buscarInput').value;
+        cargarPublicaciones(titulo, categoriaActiva);
+    }
+
+    /* ── Filtros del dropdown ── */
+    document.querySelectorAll('.filtro-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            categoriaActiva = this.dataset.categoria;
+            document.getElementById('filtroTexto').textContent =
+                categoriaActiva ? categoriaActiva : 'Filtros';
+            buscar();
+        });
+    });
 
     cargarPublicaciones();
 </script>
