@@ -130,22 +130,26 @@ class VideoCallManager {
         
         this.configuration = {
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun.relay.metered.ca:80' },
                 {
                     urls: 'turn:global.relay.metered.ca:80',
-                    username: 'TU_USERNAME',
-                    credential: 'TU_CREDENTIAL'
+                    username: '9f4e271e08ea6740306b75a9',
+                    credential: 'TYOXGgRZdHOOdwu4'
+                },
+                {
+                    urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+                    username: '9f4e271e08ea6740306b75a9',
+                    credential: 'TYOXGgRZdHOOdwu4'
                 },
                 {
                     urls: 'turn:global.relay.metered.ca:443',
-                    username: 'TU_USERNAME',
-                    credential: 'TU_CREDENTIAL'
+                    username: '9f4e271e08ea6740306b75a9',
+                    credential: 'TYOXGgRZdHOOdwu4'
                 },
                 {
                     urls: 'turns:global.relay.metered.ca:443?transport=tcp',
-                    username: 'TU_USERNAME',
-                    credential: 'TU_CREDENTIAL'
+                    username: '9f4e271e08ea6740306b75a9',
+                    credential: 'TYOXGgRZdHOOdwu4'
                 }
             ]
         };
