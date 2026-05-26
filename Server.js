@@ -460,7 +460,7 @@ app.post('/api/publicaciones', authMiddleware, async (req, res) => {
 app.get('/api/publicaciones', authMiddleware, async (req, res) => {
   const { data, error } = await supabase
     .from('publicaciones')
-    .select('*, users(id, full_name, img_profile, banner_url)')
+    .select('*, users(id, full_name, img_profile, banner_url, titulo_activo)')
     .order('created_at', { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -788,7 +788,7 @@ app.get('/api/me', authMiddleware, async (req, res) => {
   const uid = req.user.id;
   const { data: user, error: e1 } = await supabase
     .from('users')
-    .select('id, full_name, email, img_profile')
+    .select('id, full_name, email, img_profile, titulo_activo')
     .eq('id', uid)
     .single();
   if (e1 || !user) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -1028,6 +1028,128 @@ app.post('/api/tienda/cosmeticos', authMiddleware, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.status(201).json(data);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  LOGROS
+// ══════════════════════════════════════════════════════════════════════════════
+
+const MENSAJES_PARA_HIPERCONECTADO = 10;
+
+const LOGROS_VALIDOS = [
+  'agente_secreto', 'hiperconectado', 'corresponsal_campo',
+  'capitan_fundador', 'trabajo_en_equipo', 'influencer'
+];
+
+async function verificarHiperconectado(uid) {
+  const { data: userData } = await supabase
+    .from('users').select('full_name').eq('id', uid).single();
+  const nombre = userData?.full_name;
+
+  const [{ count: c1 }, { count: c2 }] = await Promise.all([
+    supabase.from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('username', nombre),
+    supabase.from('mensajes_grupo')
+      .select('*', { count: 'exact', head: true })
+      .eq('usuario_id', uid),
+  ]);
+  return (c1 || 0) + (c2 || 0) >= MENSAJES_PARA_HIPERCONECTADO;
+}
+
+async function verificarInfluencer(uid) {
+  const { count } = await supabase
+    .from('publicaciones')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', uid);
+  return (count || 0) >= 3;
+}
+
+const CONDICIONES_LOGROS = {
+  hiperconectado: verificarHiperconectado,
+  influencer:     verificarInfluencer,
+};
+
+// POST /api/logros/desbloquear
+app.post('/api/logros/desbloquear', authMiddleware, async (req, res) => {
+  const uid     = req.user.id;
+  const logroId = req.body.logro_id;
+
+  if (!logroId) return res.status(400).json({ error: 'logro_id requerido' });
+  if (!LOGROS_VALIDOS.includes(logroId))
+    return res.status(400).json({ error: 'logro_id inválido' });
+
+  const { data: existente } = await supabase
+    .from('logros_usuario')
+    .select('id')
+    .eq('usuario_id', uid)
+    .eq('logro_id', logroId)
+    .single();
+
+  if (existente) return res.json({ nuevo: false });
+
+  const condicion = CONDICIONES_LOGROS[logroId];
+  if (condicion) {
+    const cumple = await condicion(uid);
+    if (!cumple) return res.json({ nuevo: false, pendiente: true });
+  }
+
+  const { error: e1 } = await supabase
+    .from('logros_usuario')
+    .insert([{ usuario_id: uid, logro_id: logroId }]);
+
+  if (e1) return res.status(500).json({ error: e1.message });
+
+  const { data: monedasRow } = await supabase
+    .from('monedas').select('total').eq('usuario_id', uid).single();
+
+  await supabase.from('monedas').upsert(
+    { usuario_id: uid, total: (monedasRow?.total || 0) + 10, updated_at: new Date().toISOString() },
+    { onConflict: 'usuario_id' }
+  );
+
+  return res.json({ nuevo: true });
+});
+
+// GET /api/logros/mis-logros
+app.get('/api/logros/mis-logros', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from('logros_usuario')
+    .select('logro_id, obtenido_en')
+    .eq('usuario_id', req.user.id)
+    .order('obtenido_en', { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// PUT /api/logros/titulo
+app.put('/api/logros/titulo', authMiddleware, async (req, res) => {
+  const uid     = req.user.id;
+  const logroId = req.body.logro_id;
+
+  const { data: logro } = await supabase
+    .from('logros_usuario')
+    .select('id')
+    .eq('usuario_id', uid)
+    .eq('logro_id', logroId)
+    .single();
+
+  if (!logro) return res.status(403).json({ error: 'No has desbloqueado ese logro' });
+
+  const { data: userData } = await supabase
+    .from('users').select('titulo_activo').eq('id', uid).single();
+
+  const nuevoTitulo = userData?.titulo_activo === logroId ? null : logroId;
+
+  const { error } = await supabase
+    .from('users')
+    .update({ titulo_activo: nuevoTitulo })
+    .eq('id', uid);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({ success: true, titulo_activo: nuevoTitulo, deseleccionado: nuevoTitulo === null });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

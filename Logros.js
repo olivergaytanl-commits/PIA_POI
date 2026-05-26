@@ -1,26 +1,3 @@
-// ══════════════════════════════════════════════════════════════════════════════
-//  LOGROS.JS  —  Sistema de Logros y Títulos  |  PIA - POI
-//
-//  USO:
-//    1. Copia las rutas de la sección "BACKEND" a tu Server.js (antes del server.listen)
-//    2. Incluye este script en las páginas: Chat.html, Publi.html, Tarea.html, Perfil.html
-//       <script src="Logros.js"></script>
-//
-//  BASE DE DATOS (Supabase) — ejecuta este SQL:
-/*
-  -- Tabla de logros desbloqueados por usuario
-  CREATE TABLE IF NOT EXISTS logros_usuario (
-    id          SERIAL PRIMARY KEY,
-    usuario_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    logro_id    TEXT    NOT NULL,
-    obtenido_en TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (usuario_id, logro_id)
-  );
-
-  -- Columna para el título activo en la tabla users
-  ALTER TABLE users ADD COLUMN IF NOT EXISTS titulo_activo TEXT DEFAULT NULL;
-*/
-// ══════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CATÁLOGO DE LOGROS  (usado tanto en front como en el panel de Perfil)
